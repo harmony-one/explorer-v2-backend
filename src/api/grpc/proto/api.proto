@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+service APIService {
+  rpc GetBlockByNumber (RequestBlockByNumber) returns (Block) {}
+  rpc GetBlockByHash (RequestBlockByHash) returns (Block) {}
+}
+
+message Empty {}
+
+message Block {
+  uint64 number = 1;
+  string hash = 2;
+  string miner = 3;
+  string extraData = 4;
+  uint64 gasLimit = 5;
+  uint64 gasUsed = 6;
+  string timestamp = 7;
+  uint64 difficulty = 8;
+  string logsBloom = 9;
+  string mixHash = 10;
+  int32 nonce = 11;
+  string parentHash = 12;
+  string receiptsRoot = 13;
+  string sha3Uncles = 14;
+  uint64 size = 15;
+  string stateRoot = 16;
+  repeated string transactions = 17;
+  repeated string staking_transactions = 18;
+  string transactionsRoot = 19;
+  repeated string uncles = 20;
+  uint64 epoch = 21;
+  string viewID = 22;
+}
+
+message RequestBlockByNumber {
+  uint64 blockNumber = 1;
+  uint32 shardID = 2;
+}
+
+message RequestBlockByHash {
+  string blockHash = 1;
+  uint32 shardID = 2;
+}
+
+

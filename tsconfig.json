@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "types": ["node"],
+    "lib": ["ES2019"],
+    /* Basic Options */
+    "target": "ES2020" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017', 'ES2018', 'ES2019' or 'ESNEXT'. */,
+    "module": "commonjs" /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', or 'ESNext'. */,
+    "allowJs": false /* Allow javascript files to be compiled. */,
+    "sourceMap": true /* Generates corresponding '.map' file. */,
+    "outDir": "./dist" /* Redirect output structure to the directory. */,
+    "baseUrl": "./src",
+    "paths": {"src/*": ["./*"]},
+    "rootDir": "./" /* Specify the root directory of input files. Use to control the output directory structure with --outDir. */,
+    "removeComments": true /* Do not emit comments to output. */,
+    "noEmit": false,
+    /* Strict Type-Checking Options */
+    "strict": true /* Enable all strict type-checking options. */,
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src", "@types"]
+}

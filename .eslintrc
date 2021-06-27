@@ -1,0 +1,46 @@
+{
+  "extends": ["eslint:recommended", "google"],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["prettier"],
+  "settings": {
+    "import/resolver": {
+      "node": {
+        "extensions": [".js", ".ts"],
+        "paths": ["src", "node_modules"]
+      }
+    }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.ts"],
+      "rules": {
+        "react/prop-types": "off"
+      }
+    }
+  ],
+  "rules": {
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/camelcase": [0],
+    "object-curly-newline": "off",
+    "jsx-a11y/media-has-caption": "off",
+    "no-underscore-dangle": "off",
+    "prettier/prettier": "error",
+    "@typescript-eslint/indent": "off",
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "import/extensions": "off",
+    "semi": "off",
+    "no-undef": "off",
+    "require-jsdoc": "off",
+    "no-unused-vars": "off",
+    "indent": "off",
+    "object-curly-spacing": "off",
+    "max-len": "off",
+    "operator-linebreak": "off",
+    "new-cap": "off",
+    "quote-props": "off",
+    "no-constant-condition": "off",
+    "prefer-rest-params": "off",
+    "no-unreachable": "off",
+    "no-trailing-spaces": "off"
+  }
+}
