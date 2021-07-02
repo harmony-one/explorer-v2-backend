@@ -75,7 +75,7 @@ export const mapInternalTransactionFromBlockTrace = (blockNumber: BlockNumber) =
     index:
       (tx.index || tx.transactionPosition || 0) +
       // todo 60 just to make sure that index is unique across block records
-      (tx.traceAddress && tx.traceAddress.length ? tx.traceAddress[0] * 60 : 0),
+      (tx.traceAddress && tx.traceAddress.length ? tx.traceAddress[0] * 40 : 0),
     value: tx.action.value || '0x0', // can be undefined
     deployedBytecode: tx.result && tx.result.code ? tx.result.code : undefined,
   } as InternalTransaction
