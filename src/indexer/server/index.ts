@@ -28,7 +28,7 @@ export const indexerServer = async () => {
 
         const blockNumber = await stores[shardID].indexer.getLastIndexedBlockNumber()
         const isSynced = blockNumber ? latestBlockchainBlock - blockNumber < 10 : false
-        return {shardID, blockNumber, isSynced}
+        return {shardID, blockNumber, latestBlockchainBlock, isSynced}
       })
     )
     const state = {lastSyncedBlocks}

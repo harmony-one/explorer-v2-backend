@@ -20,6 +20,8 @@ import {PostgresStorageSignature} from 'src/store/postgres/Signatures'
 import {PostgresStorageMetrics} from 'src/store/postgres/Metrics'
 import {PostgresStorageERC721} from 'src/store/postgres/ERC721'
 import {PostgresStorageERC1155} from 'src/store/postgres/ERC1155'
+import {PostgresStorageOneWalletMetrics} from 'src/store/postgres/OneWalletMetrics'
+
 import {config} from 'src/config'
 
 const defaultRetries = 5
@@ -41,6 +43,7 @@ export class PostgresStorage implements IStorage {
   erc1155: PostgresStorageERC1155
   signature: PostgresStorageSignature
   metrics: PostgresStorageMetrics
+  oneWalletMetrics: PostgresStorageOneWalletMetrics
 
   isStarted = false
   isStarting = false
@@ -63,6 +66,7 @@ export class PostgresStorage implements IStorage {
     this.erc1155 = new PostgresStorageERC1155(this.query)
     this.signature = new PostgresStorageSignature(this.query)
     this.metrics = new PostgresStorageMetrics(this.query)
+    this.oneWalletMetrics = new PostgresStorageOneWalletMetrics(this.query)
 
     this.l = logger(module, `shard${options.shardID}`)
     this.options = options
