@@ -25,7 +25,7 @@ export const withCache = async (keys: any[], f: Function, maxAge?: number) => {
 
   const res = await f()
 
-  // don't cache empty arrays
+  // don't cache empty arrays and falsy values. still cache empty objects
   if ((!Array.isArray(res) && res) || (Array.isArray(res) && res.length)) {
     cache.set(key, res, maxAge)
   }

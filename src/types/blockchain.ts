@@ -13,6 +13,7 @@ export type RPCHarmonyMethod =
   | 'hmy_getBlocks'
   | 'hmy_call'
   | 'debug_traceTransaction'
+  | 'hmyv2_getTransactionReceipt'
 
 export type ShardID = 0 | 1 | 2 | 3
 
@@ -107,6 +108,16 @@ export type RPCTransaction = {
   transactionIndex: string
   v: string
   value: string
+}
+
+export type TransactionReceipt = RPCTransaction & {
+  cumulativeGasUsed: string
+  gasUsed: string
+  logs?: [
+    {
+      data?: string
+    }
+  ]
 }
 
 export type RPCTransactionHarmony = {

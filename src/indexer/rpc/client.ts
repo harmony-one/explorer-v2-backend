@@ -12,6 +12,7 @@ import {
   Log,
   InternalTransaction,
   ByteCode,
+  TransactionReceipt,
 } from 'types/blockchain'
 import {mapBlockFromResponse, mapInternalTransactionFromBlockTrace} from './mappers'
 import {mainnetChainID} from 'src/constants'
@@ -72,6 +73,13 @@ export const getLogs = (
 
 // todo
 export const getBalance = () => {}
+
+export const getTransactionReceipt = (
+  shardID: ShardID,
+  hash: TransactionHash
+): Promise<TransactionReceipt> => {
+  return transport(shardID, 'hmyv2_getTransactionReceipt', [hash])
+}
 
 export const getTransactionTrace = (
   shardID: ShardID,

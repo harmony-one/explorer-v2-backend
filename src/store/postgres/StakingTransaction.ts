@@ -28,6 +28,7 @@ export class PostgresStorageStakingTransaction implements IStorageStakingTransac
     }
 
     const {query, params} = generateQuery(newTx)
+
     return await this.query(
       `insert into staking_transactions ${query} on conflict (hash) do nothing;`,
       params

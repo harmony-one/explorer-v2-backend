@@ -114,7 +114,9 @@ create table if not exists staking_transactions
     transaction_index smallint,
     v                 text,
     msg               jsonb,
-    type              staking_transaction_type
+    type              staking_transaction_type,
+    /* amount from msg.amount or if type=CollectRewards from hmyv2_getTransactionReceipt tx.logs[0].data */
+    amount            numeric
 );
 
 create index if not exists idx_staking_transactions_hash on staking_transactions using hash (hash);

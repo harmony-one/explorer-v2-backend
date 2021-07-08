@@ -139,7 +139,23 @@ export class BlockIndexer {
               )
             })
 
-            await store.staking.addStakingTransactions(block.stakingTransactions)
+            const stakingTransactionsWithAmount = await Promise.all(
+              block.stakingTransactions.map(async (tx) => {
+                if (tx.type !== 'CollectRewards') {
+                  const amountHex = tx.msg.amount || 0
+                  const amount = BigInt(amountHex).toString()
+                  return {...tx, amount}
+                }
+
+                // get receipt for CollectReward type of staking transactions to get reward amount (tx.logs[0].data)
+                const res = await RPCClient.getTransactionReceipt(shardID, tx.hash)
+                const amountHex = (res.logs && res.logs[0] && res.logs[0].data) || 0
+                const amount = BigInt(amountHex).toString()
+                return {...tx, amount}
+              })
+            )
+
+            await store.staking.addStakingTransactions(stakingTransactionsWithAmount)
             return block
           })
         )
