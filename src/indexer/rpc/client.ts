@@ -110,6 +110,7 @@ export const traceBlock = (
   )
 }
 
+// testnet ID 1666700000
 export const getChainID = (shardID: ShardID): Promise<number> => {
   return transport(shardID, 'eth_chainId', []).then((r) => parseInt(r, 16))
 }

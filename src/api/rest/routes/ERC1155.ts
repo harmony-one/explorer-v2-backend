@@ -19,7 +19,7 @@ export async function getUserERC1155Balances(req: Request, res: Response, next: 
   next(data)
 }
 
-erc1155Router.get('/token/:address/balances', catchAsync(getTokenERC1155Assets))
+erc1155Router.get('/token/:address/assets', catchAsync(getTokenERC1155Assets))
 
 export async function getTokenERC1155Assets(req: Request, res: Response, next: NextFunction) {
   const {address} = req.params

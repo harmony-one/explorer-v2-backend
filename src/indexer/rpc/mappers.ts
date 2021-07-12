@@ -16,6 +16,20 @@ import {
 import {normalizeAddress} from 'src/utils/normalizeAddress'
 
 export const mapBlockFromResponse = (block: RPCBlockHarmony): Block => {
+  // removing redundant fields for legacy blocks
+  /*
+  curl --location --request POST 'https://api.s0.b.hmny.io' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{
+  "jsonrpc": "2.0",
+    "method": "hmy_getBlockByNumber",
+    "id": 1,
+    "params": [0, false]
+  }'
+  */
+  delete block.vrfProof
+  delete block.vrf
+
   // @ts-ignore
   return {
     ...block,
