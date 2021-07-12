@@ -27,7 +27,10 @@ export const mapBlockFromResponse = (block: RPCBlockHarmony): Block => {
     "params": [0, false]
   }'
   */
+
+  // @ts-ignore
   delete block.vrfProof
+  // @ts-ignore
   delete block.vrf
 
   // @ts-ignore
