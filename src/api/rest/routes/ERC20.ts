@@ -18,3 +18,12 @@ export async function getUserERC20Balances(req: Request, res: Response, next: Ne
   const data = await controllers.getUserERC20Balances(address)
   next(data)
 }
+
+erc20Router.get('/token/:address/holders', catchAsync(getUserERC20Balances))
+
+export async function getUserERC20Balances(req: Request, res: Response, next: NextFunction) {
+  const {address} = req.params
+  const {offset, limit} = req.query
+  const data = await controllers.getERC20TokenHolders(address)
+  next(data)
+}

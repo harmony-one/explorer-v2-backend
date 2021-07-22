@@ -77,7 +77,7 @@ export class PostgresStorageERC1155 implements IStorageERC1155 {
   setNeedUpdateAsset = async (token: Address, tokenID: IERC721TokenID) => {
     return this.query(
       `
-            insert into erc1155_asset(token_address, token_id, need_update) 
+            insert into erc1155_asset(token_address, token_id, need_update)
                 values($1, $2, true)
                 on conflict(token_address, token_id)
                 do update set need_update = true;
@@ -89,7 +89,7 @@ export class PostgresStorageERC1155 implements IStorageERC1155 {
   setNeedUpdateBalance = async (owner: Address, token: Address, tokenID: IERC721TokenID) => {
     return this.query(
       `
-            insert into erc1155_balance(owner_address, token_address, token_id, need_update) 
+            insert into erc1155_balance(owner_address, token_address, token_id, need_update)
                 values($1, $2, $3, true)
                 on conflict(owner_address, token_id, token_address)
                 do update set need_update = true;
