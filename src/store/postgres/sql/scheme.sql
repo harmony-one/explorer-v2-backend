@@ -204,7 +204,7 @@ types call staticcall create delegatecall
 */
 create table if not exists internal_transactions
 (
-    index            smallint                                not null,
+    index            integer                                not null,
     block_number     bigint                                  not null,
     "from"           char(42)                                not null,
     "to"             char(42), /*can be empty if error*/

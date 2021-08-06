@@ -66,8 +66,8 @@ export const addContract = async (store: PostgresStorage, contract: Contract) =>
 
   const erc1155: IERC1155 = {
     address: contract.address,
-    name: meta.name,
-    symbol: meta.symbol,
+    name: meta.name.replace('\u0000', ''),
+    symbol: meta.symbol.replace('\u0000', ''),
     lastUpdateBlockNumber: contract.blockNumber,
     meta: metaJSON,
     contractURI: params.contractURI,
