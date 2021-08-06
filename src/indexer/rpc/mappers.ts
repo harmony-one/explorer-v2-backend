@@ -72,7 +72,8 @@ const mapStakingTransaction = (tx: RPCStakingTransactionHarmony) => {
 }
 
 export const mapInternalTransactionFromBlockTrace = (blockNumber: BlockNumber) => (
-  tx: RPCInternalTransactionFromBlockTrace
+  tx: RPCInternalTransactionFromBlockTrace,
+  i: number
 ) => {
   const index = tx.traceAddress[0] !== undefined ? tx.traceAddress[0] : null
 
@@ -89,10 +90,12 @@ export const mapInternalTransactionFromBlockTrace = (blockNumber: BlockNumber) =
     output: tx.result ? tx.result.output : null,
     type: tx.action.callType || tx.type,
     error: [tx.error, tx.revert].filter((a) => a).join(':'),
-    index:
+    index: i,
+    /*
       (tx.index || tx.transactionPosition || 0) +
-      // todo 60 just to make sure that index is unique across block records
-      (tx.traceAddress && tx.traceAddress.length ? tx.traceAddress[0] * 40 : 0),
+      // actual index position won't work due pg type overflow (smallint)
+      // todo change type to integer, currently using aray index
+      */
     value: tx.action.value || '0x0', // can be undefined
     deployedBytecode: tx.result && tx.result.code ? tx.result.code : undefined,
   } as InternalTransaction
