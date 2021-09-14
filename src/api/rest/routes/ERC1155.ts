@@ -34,3 +34,11 @@ export async function getTokenERC1155Assets(req: Request, res: Response, next: N
   const data = await controllers.getTokenERC1155Assets(address)
   next(data)
 }
+
+erc1155Router.get('/token/:address/asset/:tokenID', catchAsync(getTokenERC1155AssetDetails))
+
+export async function getTokenERC1155AssetDetails(req: Request, res: Response, next: NextFunction) {
+  const {address, tokenID} = req.params
+  const data = await controllers.getTokenERC1155AssetDetails(address, tokenID)
+  next(data)
+}
