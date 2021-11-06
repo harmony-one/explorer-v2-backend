@@ -358,3 +358,12 @@ create table if not exists indexer_state
     indexer_name             varchar,
     unique (indexer_name)
 );
+
+
+create table if not exists wallets_count
+(
+    id serial primary key,
+    date            timestamp default now(),
+    date_string varchar unique not null,
+    count bigint not null
+);

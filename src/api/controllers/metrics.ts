@@ -8,3 +8,13 @@ export async function getTransactionCountLast14Days(): Promise<any | null> {
     1000 * 60 * 60 * 24
   )
 }
+
+export async function getWalletsCountLast14Days(): Promise<any> {
+  const count = await withCache(
+    ['getWalletsCountLast14Days'],
+    () => stores[0].metrics.getWalletsCountLast14Days(),
+    1000 * 60 * 60 * 24
+  )
+
+  return count
+}
