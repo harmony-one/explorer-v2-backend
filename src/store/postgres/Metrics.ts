@@ -41,10 +41,10 @@ export class PostgresStorageMetrics implements IStorageMetrics {
 
       const getRecords = async () => {
         const res = await this.query(
-          `select date_string, "count" from wallets_count order by id desc limit 14;`,
+          `select date_string, "count" from wallets_count order by id asc limit 14;`,
           []
         )
-        return res.map((o: any) => ({date: o.date_string, count: o.count}))
+        return res.map((o: any) => ({date: o.date_string, count: o.count})).reverse()
       }
 
       if (isAddingRecord) {
@@ -53,7 +53,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
 
       const currentDateString = new Date().toISOString().split('T')[0]
       const lastRecord = await this.query(
-        `select date_string from wallets_count order by id desc limit 1;`,
+        `select date_string from wallets_count order by id asc limit 1;`,
         []
       )
 

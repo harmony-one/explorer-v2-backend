@@ -13,7 +13,7 @@ export async function getWalletsCountLast14Days(): Promise<any> {
   const count = await withCache(
     ['getWalletsCountLast14Days'],
     () => stores[0].metrics.getWalletsCountLast14Days(),
-    1000 * 60 * 60 * 24
+    1000 * 60 * 60 * 1
   )
 
   return count
