@@ -59,7 +59,6 @@ export class PostgresStorageMetrics implements IStorageMetrics {
       )
 
       if (!lastRecord.length || currentDateString !== lastRecord[0].date_string) {
-        console.log({currentDateString, lastRecord})
         // fire in background
         addRecord()
       }
