@@ -26,6 +26,8 @@ export class PostgresStorageMetrics implements IStorageMetrics {
   // todo recount only new ones. prevent multiple instances simultaneous calculation
   getWalletsCountLast14Days = async (): Promise<any[]> => {
     try {
+      const currentDateString = new Date().toISOString().split('T')[0]
+
       const addRecord = async () => {
         isAddingRecord = true
         const [{count}] = await this.query(
@@ -51,13 +53,13 @@ export class PostgresStorageMetrics implements IStorageMetrics {
         return await getRecords()
       }
 
-      const currentDateString = new Date().toISOString().split('T')[0]
       const lastRecord = await this.query(
         `select date_string from wallets_count order by id desc limit 1;`,
         []
       )
 
       if (!lastRecord.length || currentDateString !== lastRecord[0].date_string) {
+        console.log({currentDateString, lastRecord})
         // fire in background
         addRecord()
       }
