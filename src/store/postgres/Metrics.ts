@@ -46,7 +46,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
           `select date_string, "count" from wallets_count order by id desc limit 14;`,
           []
         )
-        return res.map((o: any) => ({date: o.date_string, count: o.count}))
+        return res.map((o: any) => ({date: o.date_string, count: o.count})).reverse()
       }
 
       if (isAddingRecord) {
