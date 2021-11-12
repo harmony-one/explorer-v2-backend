@@ -3,11 +3,14 @@ import {BlockIndexer} from './indexer/BlockIndexer'
 import {LogIndexer} from './indexer/LogIndexer'
 import {ContractIndexer} from 'src/indexer/indexer/contracts/ContractIndexer'
 import {indexerServer} from 'src/indexer/server'
+
 import {ShardID} from 'src/types'
 import {logger} from 'src/logger'
 import {stores} from 'src/store'
 import * as RPCClient from 'src/indexer/rpc/client'
 import {urls, RPCUrls} from 'src/indexer/rpc/RPCUrls'
+
+import {walletCountIndexer} from 'src/indexer/indexer/metrics/walletCount'
 
 const l = logger(module)
 
@@ -31,6 +34,9 @@ export const indexer = async () => {
   }
 
   await indexerServer()
+
+  // todo enabled flag config for the task
+  walletCountIndexer()
 
   if (config.indexer.isSyncingLogsEnabled && config.indexer.shards.includes(0)) {
     const logIndexer0 = new LogIndexer(0)
