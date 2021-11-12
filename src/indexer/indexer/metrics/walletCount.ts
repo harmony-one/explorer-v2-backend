@@ -2,7 +2,7 @@ import {logger} from 'src/logger'
 import {stores} from 'src/store'
 
 const l = logger(module)
-const interval = 1000 * 60 * 60 * 24
+const interval = 1000 * 60 * 60 * 12
 
 export const walletCountIndexer = () => {
   l.info('Wallet counter starting...')
