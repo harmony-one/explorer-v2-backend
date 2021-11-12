@@ -36,7 +36,9 @@ export const indexer = async () => {
   await indexerServer()
 
   // todo enabled flag config for the task
-  walletCountIndexer()
+  if (config.indexer.shards.includes(0)) {
+    walletCountIndexer()
+  }
 
   if (config.indexer.isSyncingLogsEnabled && config.indexer.shards.includes(0)) {
     const logIndexer0 = new LogIndexer(0)
