@@ -8,6 +8,9 @@ import {
 } from 'src/types'
 import {normalizeAddress} from 'src/utils/normalizeAddress'
 import * as RPCClient from 'src/indexer/rpc/client'
+import {logger} from 'src/logger'
+
+const l = logger(module)
 import {stores} from 'src/store'
 
 const undelegateThresholdONE = 100000n * 10n ** 18n
@@ -60,38 +63,50 @@ const addAddress = async (
 }
 
 export const addInternalTransaction = (internalTransaction: InternalTransaction, block: Block) => {
-  const value = internalTransaction.value
-  if (BigInt(value) < transferThresholdONE) {
-    return
-  }
+  try {
+    const value = internalTransaction.value
+    if (BigInt(value) < transferThresholdONE) {
+      return
+    }
 
-  const address = internalTransaction.to
-  addAddress(address, value, 'internal', +block.number, internalTransaction.transactionHash)
+    const address = internalTransaction.to
+    addAddress(address, value, 'internal', +block.number, internalTransaction.transactionHash)
+  } catch (err) {
+    l.error(err)
+  }
 }
 
 export const addTransaction = (transaction: RPCTransaction) => {
-  const value = transaction.value
-  if (BigInt(value) < transferThresholdONE) {
-    return
-  }
+  try {
+    const value = transaction.value
+    if (BigInt(value) < transferThresholdONE) {
+      return
+    }
 
-  const address = transaction.to
-  addAddress(address, value, 'transaction', +transaction.blockNumber, transaction.hash)
+    const address = transaction.to
+    addAddress(address, value, 'transaction', +transaction.blockNumber, transaction.hash)
+  } catch (err) {
+    l.error(err)
+  }
 }
 
 export const addStakingTransaction = (stakingTransaction: RPCStakingTransactionHarmony) => {
-  if (stakingTransaction.type !== 'Undelegate') {
-    return
+  try {
+    if (stakingTransaction.type !== 'Undelegate') {
+      return
+    }
+
+    const value = stakingTransaction.msg.amount
+
+    if (BigInt(value) < undelegateThresholdONE) {
+      return
+    }
+
+    const address = normalizeAddress(stakingTransaction.msg.delegatorAddress)
+    addAddress(address!, value, 'staking', +stakingTransaction.blockNumber, stakingTransaction.hash)
+  } catch (err) {
+    l.error(err)
   }
-
-  const value = stakingTransaction.msg.amount
-
-  if (BigInt(value) < undelegateThresholdONE) {
-    return
-  }
-
-  const address = normalizeAddress(stakingTransaction.msg.delegatorAddress)
-  addAddress(address!, value, 'staking', +stakingTransaction.blockNumber, stakingTransaction.hash)
 }
 
 export const getEntries = () =>
