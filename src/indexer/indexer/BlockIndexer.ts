@@ -10,6 +10,7 @@ import {PostgresStorage} from 'src/store/postgres'
 import {AddressIndexer} from './addressIndexer'
 import {contractAddressIndexer} from './сontractAddressIndexer'
 import {internalTransactionsIgnoreListFilter} from './ignoreList/internalTransactionIgnoreList'
+import * as monitorTransfers from './metrics/transfers'
 
 const approximateBlockMintingTime = 2000
 const maxBatchCount = 100
@@ -97,6 +98,7 @@ export class BlockIndexer {
               addressIndexer.add(block, tx.transactionHash, 'internal_transaction', tx.from, tx.to)
             })
 
+            txs.map((tx) => monitorTransfers.addInternalTransaction(tx, block))
             await Promise.all(txs.map((tx) => store.internalTransaction.addInternalTransaction(tx)))
 
             await Promise.all(
@@ -114,12 +116,13 @@ export class BlockIndexer {
       const addTransactions = (blocks: Block[]) => {
         return Promise.all(
           blocks.map(async (block) => {
+            block.transactions.map(monitorTransfers.addTransaction)
+
             block.transactions.forEach((tx) => {
               // todo handle empty create to addresses
               // 0x262492c68baaf4a3123cf30d229b5d3907204ba723a521b3d48b6d84ef344640
               addressIndexer.add(block, tx.ethHash, 'transaction', tx.from, tx.to)
             })
-
             await store.transaction.addTransactions(block.transactions)
             return block
           })
@@ -129,6 +132,7 @@ export class BlockIndexer {
       const addStakingTransactions = (blocks: Block[]) => {
         return Promise.all(
           blocks.map(async (block) => {
+            block.stakingTransactions.map(monitorTransfers.addStakingTransaction)
             block.stakingTransactions.forEach((tx) => {
               addressIndexer.add(
                 block,

@@ -14,6 +14,8 @@ export type RPCHarmonyMethod =
   | 'hmy_call'
   | 'debug_traceTransaction'
   | 'hmyv2_getTransactionReceipt'
+  | 'hmy_getBalance'
+  | 'hmyv2_getTransactionsCount'
 
 export type ShardID = 0 | 1 | 2 | 3
 

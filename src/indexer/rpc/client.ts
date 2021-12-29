@@ -71,8 +71,18 @@ export const getLogs = (
   return transport(shardID, 'eth_getLogs', [o])
 }
 
-// todo
-export const getBalance = () => {}
+export const getBalance = (shardID: ShardID, address: Address): Promise<TransactionReceipt> => {
+  return transport(shardID, 'hmy_getBalance', [address, 'latest'])
+}
+
+type transactionCountType = 'ALL' | 'RECEIVED' | 'SENT'
+export const getTransactionCount = (
+  shardID: ShardID,
+  address: Address,
+  type: transactionCountType = 'ALL'
+): Promise<TransactionReceipt> => {
+  return transport(shardID, 'hmyv2_getTransactionsCount', [address, type])
+}
 
 export const getTransactionReceipt = (
   shardID: ShardID,

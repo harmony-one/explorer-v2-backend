@@ -4,7 +4,7 @@ import LoggerModule from 'zerg/dist/LoggerModule'
 import {RPCUrls, urls} from '../../RPCUrls'
 import {ShardID} from 'src/types/blockchain'
 import {RPCErrorPrefix} from 'src/indexer/rpc/transport/constants'
-const callTimeout = 40000
+const callTimeout = 90000
 const defaultRetries = 3
 
 const timeoutPromise = () =>
