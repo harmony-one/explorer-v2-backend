@@ -15,7 +15,8 @@ import * as monitorTransfers from './metrics/transfers'
 const approximateBlockMintingTime = 2000
 const maxBatchCount = 100
 
-const blockRange = 1
+// todo to config
+const blockRange = 10
 
 const range = (num: number) => Array(num).fill(0)
 
