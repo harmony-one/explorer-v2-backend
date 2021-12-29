@@ -98,7 +98,7 @@ export class BlockIndexer {
               addressIndexer.add(block, tx.transactionHash, 'internal_transaction', tx.from, tx.to)
             })
 
-            txs.map((tx) => monitorTransfers.addInternalTransaction(tx, block))
+            // txs.map((tx) => monitorTransfers.addInternalTransaction(tx, block))
             await Promise.all(txs.map((tx) => store.internalTransaction.addInternalTransaction(tx)))
 
             await Promise.all(
@@ -116,7 +116,7 @@ export class BlockIndexer {
       const addTransactions = (blocks: Block[]) => {
         return Promise.all(
           blocks.map(async (block) => {
-            block.transactions.map(monitorTransfers.addTransaction)
+            // block.transactions.map(monitorTransfers.addTransaction)
 
             block.transactions.forEach((tx) => {
               // todo handle empty create to addresses
@@ -132,7 +132,7 @@ export class BlockIndexer {
       const addStakingTransactions = (blocks: Block[]) => {
         return Promise.all(
           blocks.map(async (block) => {
-            block.stakingTransactions.map(monitorTransfers.addStakingTransaction)
+            // block.stakingTransactions.map(monitorTransfers.addStakingTransaction)
             block.stakingTransactions.forEach((tx) => {
               addressIndexer.add(
                 block,
