@@ -6,6 +6,7 @@ import {stores} from 'src/store'
 import * as RPCClient from 'src/indexer/rpc/client'
 import {cache as LRUCache} from 'src/api/controllers/cache'
 import {getLastLogs} from 'src/logger/lastLogs'
+import * as monitorTransfers from 'src/indexer/indexer/metrics/transfers'
 
 const l = logger(module)
 
@@ -17,6 +18,10 @@ export const indexerServer = async () => {
 
   const api = express()
   const server = http.createServer(api)
+
+  api.get('/transfers', (req, res) => {
+    return res.json(monitorTransfers.getEntries())
+  })
 
   api.get('/', async (req, res) => {
     const shards = config.indexer.shards
