@@ -187,7 +187,7 @@ export class BlockIndexer {
             return Promise.resolve([] as Block[])
           }
 
-          this.l.debug(`Processing [${from}, ${to}] ${this.batchCount} blocks...`)
+          this.l.debug(`Processing [${from}, ${to}] ${to - from + 1} blocks...`)
 
           return await getBlocks(from, to)
             .then(addBlocks)
