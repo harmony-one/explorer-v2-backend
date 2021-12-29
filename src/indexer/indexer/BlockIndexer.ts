@@ -199,7 +199,8 @@ export class BlockIndexer {
         })
       ).then((res) => res.flatMap((b) => b).filter((b) => b))
 
-      await addAddresses()
+      // removed await so no need to wait
+      addAddresses()
 
       const lastFetchedBlockNumber = blocks.reduce((a, b) => (a < b.number ? b.number : a), 0)
       const transactionsCount = blocks.reduce((a, b) => a + b.transactions.length, 0)
