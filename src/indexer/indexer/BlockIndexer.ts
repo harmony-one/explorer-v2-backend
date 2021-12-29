@@ -15,7 +15,7 @@ import * as monitorTransfers from './metrics/transfers'
 const approximateBlockMintingTime = 2000
 const maxBatchCount = 100
 
-const blockRange = 10
+const blockRange = 1
 
 const range = (num: number) => Array(num).fill(0)
 
@@ -98,7 +98,7 @@ export class BlockIndexer {
               addressIndexer.add(block, tx.transactionHash, 'internal_transaction', tx.from, tx.to)
             })
 
-            // txs.map((tx) => monitorTransfers.addInternalTransaction(tx, block))
+            txs.map((tx) => monitorTransfers.addInternalTransaction(tx, block))
             await Promise.all(txs.map((tx) => store.internalTransaction.addInternalTransaction(tx)))
 
             await Promise.all(
@@ -116,7 +116,7 @@ export class BlockIndexer {
       const addTransactions = (blocks: Block[]) => {
         return Promise.all(
           blocks.map(async (block) => {
-            // block.transactions.map(monitorTransfers.addTransaction)
+            block.transactions.map(monitorTransfers.addTransaction)
 
             block.transactions.forEach((tx) => {
               // todo handle empty create to addresses
@@ -132,7 +132,7 @@ export class BlockIndexer {
       const addStakingTransactions = (blocks: Block[]) => {
         return Promise.all(
           blocks.map(async (block) => {
-            // block.stakingTransactions.map(monitorTransfers.addStakingTransaction)
+            block.stakingTransactions.map(monitorTransfers.addStakingTransaction)
             block.stakingTransactions.forEach((tx) => {
               addressIndexer.add(
                 block,
@@ -167,7 +167,15 @@ export class BlockIndexer {
 
       const addAddresses = () => {
         const entries = addressIndexer.get()
-        return Promise.all(entries.map((e) => store.address.addAddress2Transaction(e)))
+        return Promise.all(
+          entries.map((e) => {
+            // hack, sometimes addAddress2Transaction stucks, so we set a timeout here
+            return Promise.race([
+              store.address.addAddress2Transaction(e),
+              new Promise((resolve) => setTimeout(resolve, 300)),
+            ])
+          })
+        )
       }
 
       const blocks = await Promise.all(
@@ -178,6 +186,8 @@ export class BlockIndexer {
           if (from > latestBlockchainBlock) {
             return Promise.resolve([] as Block[])
           }
+
+          this.l.debug(`Processing [${from}, ${to}] ${this.batchCount} blocks...`)
 
           return await getBlocks(from, to)
             .then(addBlocks)
