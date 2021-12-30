@@ -24,7 +24,7 @@ import {PostgresStorageOneWalletMetrics} from 'src/store/postgres/OneWalletMetri
 
 import {config} from 'src/config'
 
-const defaultRetries = 5
+const defaultRetries = 2
 
 const sleep = (time = 1000) => new Promise((r) => setTimeout(r, time))
 
