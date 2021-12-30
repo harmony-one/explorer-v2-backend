@@ -1,7 +1,7 @@
 import * as RPCClient from 'src/indexer/rpc/client'
 import {urls, RPCUrls} from 'src/indexer/rpc/RPCUrls'
 import {ShardID, Block, BlockNumber} from 'src/types/blockchain'
-
+import {arrayChunk, defaultChunkSize} from 'src/utils/arrayChunk'
 import {logger} from 'src/logger'
 import LoggerModule from 'zerg/dist/LoggerModule'
 import {stores} from 'src/store'
@@ -100,7 +100,13 @@ export class BlockIndexer {
             })
 
             txs.map((tx) => monitorTransfers.addInternalTransaction(tx, block))
-            await Promise.all(txs.map((tx) => store.internalTransaction.addInternalTransaction(tx)))
+
+
+            // await Promise.all(txs.map((tx) => store.internalTransaction.addInternalTransaction(tx)))
+            const chunks = arrayChunk(txs, defaultChunkSize)
+            for (const chunk of chunks) {
+                await Promise.all(chunk.map((tx: any) => store.internalTransaction.addInternalTransaction(tx)))
+            }
 
             await Promise.all(
               txs
@@ -173,7 +179,7 @@ export class BlockIndexer {
             // hack, sometimes addAddress2Transaction stucks, so we set a timeout here
             return Promise.race([
               store.address.addAddress2Transaction(e),
-              new Promise((resolve) => setTimeout(resolve, 300)),
+              // new Promise((resolve) => setTimeout(resolve, 300)),
             ])
           })
         )

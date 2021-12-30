@@ -6,6 +6,7 @@ import {
   Transaction,
   Filter,
 } from 'src/types'
+import {arrayChunk, defaultChunkSize} from 'src/utils/arrayChunk'
 
 import {Query} from 'src/store/postgres/types'
 import {fromSnakeToCamelResponse, generateQuery} from 'src/store/postgres/queryMapper'
@@ -19,7 +20,10 @@ export class PostgresStorageTransaction implements IStorageTransaction {
   }
 
   addTransactions = async (txs: RPCTransactionHarmony[]) => {
-    return Promise.all(txs.map((t) => this.addTransaction(t)))
+    const chunks = arrayChunk(txs, defaultChunkSize)
+    for (const chunk of chunks) {
+      await Promise.all(chunk.map((tx: any) => this.addTransaction(tx)))
+    }
   }
 
   addTransaction = async (tx: RPCTransactionHarmony) => {
