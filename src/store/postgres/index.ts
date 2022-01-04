@@ -89,7 +89,7 @@ export class PostgresStorage implements IStorage {
     this.l.info(`postgres://${p.user}@${p.host}:${p.port}/${p.database} starting...`)
 
     this.isStarting = true
-    // await this.migrate()
+    await this.migrate()
     this.isStarted = true
     this.isStarting = false
     this.l.info('Done')

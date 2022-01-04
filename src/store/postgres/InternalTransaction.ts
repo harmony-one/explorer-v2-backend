@@ -7,7 +7,11 @@ import {
 } from 'src/types'
 
 import {Query} from 'src/store/postgres/types'
-import {fromSnakeToCamelResponse, generateQuery} from 'src/store/postgres/queryMapper'
+import {
+  fromSnakeToCamelResponse,
+  generateMultipleQuery,
+  generateQuery,
+} from 'src/store/postgres/queryMapper'
 import {buildSQLQuery} from 'src/store/postgres/filters'
 
 export class PostgresStorageInternalTransaction implements IStorageInternalTransaction {
@@ -29,6 +33,25 @@ export class PostgresStorageInternalTransaction implements IStorageInternalTrans
 
     const {query, params} = generateQuery(newTx)
     return await this.query(
+      `insert into internal_transactions ${query} on conflict (transaction_hash, index) do nothing;`,
+      params
+    )
+  }
+
+  addInternalTransactions = (txs: InternalTransaction[]) => {
+    const mappedTxs = txs.map((tx) => {
+      return {
+        ...tx,
+        deployedBytecode: undefined,
+        blockHash: undefined,
+        value: BigInt(tx.value).toString(),
+        gas: BigInt(tx.gas).toString(),
+        gasUsed: BigInt(tx.gasUsed).toString(),
+      }
+    })
+
+    const {query, params} = generateMultipleQuery(mappedTxs)
+    return this.query(
       `insert into internal_transactions ${query} on conflict (transaction_hash, index) do nothing;`,
       params
     )

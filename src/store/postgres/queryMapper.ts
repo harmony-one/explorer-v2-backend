@@ -86,3 +86,27 @@ export const generateQuery = (o: Record<any, any>) => {
     params,
   }
 }
+
+export const generateMultipleQuery = (records: Record<any, any>[]) => {
+  if (records.length === 0) {
+    throw new Error('No records to generate query')
+  }
+  let queryMultiple = ''
+  let paramsMultiple: any = []
+  for (let i = 0; i < records.length; i++) {
+    const record = records[i]
+    const {query, params} = generateQuery(record)
+    if (i === 0) {
+      queryMultiple = query
+      paramsMultiple = params
+    } else {
+      const paramsList = params.map((_, index) => `$${paramsMultiple.length + index + 1}`).join(',')
+      queryMultiple += `, (${paramsList})`
+      paramsMultiple.push(...params)
+    }
+  }
+  return {
+    query: queryMultiple,
+    params: paramsMultiple,
+  }
+}
