@@ -17,6 +17,7 @@ import {erc20Router} from 'src/api/rest/routes/ERC20'
 import {erc721Router} from 'src/api/rest/routes/ERC721'
 import {erc1155Router} from 'src/api/rest/routes/ERC1155'
 import {oneWalletMetricsRouter} from 'src/api/rest/routes/oneWalletMetrics'
+import {rpcRouter} from 'src/api/rest/routes/rpcRouter'
 import {warmUpCache} from 'src/api/controllers/cache/warmUpCache'
 
 import {transport} from 'src/api/rest/transport'
@@ -52,6 +53,7 @@ export const RESTServer = async () => {
   routerWithShards0.use('/1wallet', oneWalletMetricsRouter, transport)
 
   api.use('/v0', routerWithShards0)
+  api.use('/', rpcRouter)
 
   let server: Server
 

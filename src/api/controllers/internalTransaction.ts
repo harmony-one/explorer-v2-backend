@@ -1,5 +1,5 @@
 import {storesAPI as stores} from 'src/store'
-import {InternalTransaction, ShardID, Transaction} from 'src/types/blockchain'
+import {BlockHexNumber, InternalTransaction, ShardID, Transaction} from 'src/types/blockchain'
 import {validator} from 'src/utils/validators/validators'
 import {
   is64CharHexHash,
@@ -41,5 +41,18 @@ export async function getInternalTransactionsByField(
 
   return await withCache(['getInternalTransactionsByField', arguments], () =>
     stores[shardID].internalTransaction.getInternalTransactionsByField(field, value)
+  )
+}
+
+export async function getTraceBlock(shardID: ShardID, blockHexNumber: BlockHexNumber) {
+  const blockNumber = parseInt(blockHexNumber, 16)
+
+  validator({
+    shardID: isShard(shardID),
+    blockNumber: isBlockNumber(blockNumber),
+  })
+
+  return await withCache(['getTraceBlock', arguments], () =>
+    stores[shardID].internalTransaction.getTraceBlock(blockNumber)
   )
 }

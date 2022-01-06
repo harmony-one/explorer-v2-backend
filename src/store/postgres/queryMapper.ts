@@ -1,3 +1,5 @@
+import {InternalTransaction} from 'src/types'
+
 export const mapNaming: Record<string, string> = {
   extra_data: 'extraData',
   gas_limit: 'gasLimit',
@@ -84,5 +86,26 @@ export const generateQuery = (o: Record<any, any>) => {
   return {
     query,
     params,
+  }
+}
+
+export const mapInternalToBlockTrace = (tx: InternalTransaction) => {
+  return {
+    blockNumber: +tx.blockNumber,
+    blockHash: tx.blockHash,
+    transactionHash: tx.transactionHash,
+    type: 'call',
+    action: {
+      callType: tx.type,
+      value: '0x' + tx.value,
+      to: tx.to,
+      gas: '0x' + (+tx.gas).toString(16),
+      from: tx.from,
+      input: tx.input,
+    },
+    result: {
+      output: tx.output,
+      gasUsed: '0x' + (+tx.gasUsed).toString(16),
+    },
   }
 }

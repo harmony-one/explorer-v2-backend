@@ -4,10 +4,15 @@ import {
   InternalTransactionQueryField,
   Filter,
   InternalTransaction,
+  RPCInternalTransactionFromBlockTrace,
 } from 'src/types'
 
 import {Query} from 'src/store/postgres/types'
-import {fromSnakeToCamelResponse, generateQuery} from 'src/store/postgres/queryMapper'
+import {
+  fromSnakeToCamelResponse,
+  generateQuery,
+  mapInternalToBlockTrace,
+} from 'src/store/postgres/queryMapper'
 import {buildSQLQuery} from 'src/store/postgres/filters'
 
 export class PostgresStorageInternalTransaction implements IStorageInternalTransaction {
@@ -47,6 +52,19 @@ export class PostgresStorageInternalTransaction implements IStorageInternalTrans
     const res = await this.query(`select * from internal_transactions ${q}`, [])
 
     return res.map(fromSnakeToCamelResponse)
+  }
+
+  getTraceBlock = async (blockNumber: number): Promise<RPCInternalTransactionFromBlockTrace[]> => {
+    const res = await this.query(
+      `select it.*, blocks.hash as block_hash
+           from internal_transactions it
+           join blocks on blocks.number = it.block_number
+           where block_number = $1
+           order by it.index asc`,
+      [blockNumber]
+    )
+
+    return res.map(fromSnakeToCamelResponse).map(mapInternalToBlockTrace)
   }
 }
 
