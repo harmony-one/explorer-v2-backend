@@ -8,6 +8,7 @@ import LoggerModule from 'zerg/dist/LoggerModule'
 import {stores} from 'src/store'
 import {logTime} from 'src/utils/logTime'
 import {PostgresStorage} from 'src/store/postgres'
+import {arrayChunk} from 'src/utils/arrayChunk'
 
 const approximateBlockMintingTime = 2000
 const blockRange = 10
@@ -55,13 +56,10 @@ export class LogIndexer {
       const latestBlockchainBlock = (await RPCClient.getBlockByNumber(shardID, 'latest', false))
         .number
 
-      const addLogs = (logs: Log[]) => {
-        return Promise.all(
-          logs.map(async (log) => {
-            await store.log.addLog(log)
-            return log
-          })
-        )
+      const addLogs = async (logs: Log[]) => {
+        const chunks = arrayChunk(logs, 50)
+        await Promise.all(chunks.map((chunk) => store.log.addLogs(chunk)))
+        return logs
       }
 
       const res = await Promise.all(

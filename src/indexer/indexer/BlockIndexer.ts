@@ -102,11 +102,10 @@ export class BlockIndexer {
             txs.map((tx) => monitorTransfers.addInternalTransaction(tx, block))
 
             // await Promise.all(txs.map((tx) => store.internalTransaction.addInternalTransaction(tx)))
-            const chunks = arrayChunk(txs, 100)
-            for (const chunk of chunks) {
-              // await Promise.all(chunk.map((tx: any) => store.internalTransaction.addInternalTransaction(tx)))
-              await store.internalTransaction.addInternalTransactions(chunk)
-            }
+            const chunks = arrayChunk(txs, 50)
+            await Promise.all(
+              chunks.map((chunk) => store.internalTransaction.addInternalTransactions(chunk))
+            )
 
             await Promise.all(
               txs

@@ -42,6 +42,52 @@ export class PostgresStorageLog implements IStorageLog {
     )
   }
 
+  addLogs = (logs: Log[]): Promise<any> => {
+    let values = ''
+    const params = []
+
+    for (let i = 0; i < logs.length; i++) {
+      const log = logs[i]
+      const logParams = [
+        log.address,
+        log.topics,
+        log.data,
+        parseInt(log.blockNumber, 16),
+        log.transactionHash,
+        parseInt(log.transactionIndex, 16),
+        log.blockHash,
+        parseInt(log.logIndex, 16),
+        log.removed,
+      ]
+      const valuesList = Array(logParams.length)
+        .fill(null)
+        .map((_, paramIndex) => `$${params.length + paramIndex + 1}`)
+        .join(',')
+      if (i > 0) {
+        values += ', '
+      }
+      values += `(${valuesList})`
+      params.push(...logParams)
+    }
+
+    return this.query(
+      `insert into logs
+       (
+        address,
+        topics,
+        data,
+        block_number,
+        transaction_hash,
+        transaction_index,
+        block_hash,
+        log_index,
+        removed
+       ) values
+       ${values} on conflict (transaction_hash, log_index) do nothing;`,
+      params
+    )
+  }
+
   getLogsByTransactionHash = async (TransactionHash: string): Promise<Log[] | null> => {
     const res = await this.query(`select * from logs where transaction_hash=$1;`, [TransactionHash])
 
