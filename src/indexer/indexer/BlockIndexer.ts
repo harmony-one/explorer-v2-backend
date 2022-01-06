@@ -11,6 +11,7 @@ import {AddressIndexer} from './addressIndexer'
 import {contractAddressIndexer} from './сontractAddressIndexer'
 import {internalTransactionsIgnoreListFilter} from './ignoreList/internalTransactionIgnoreList'
 import * as monitorTransfers from './metrics/transfers'
+import {InternalTxsChunkSize} from 'src/indexer/constants'
 
 const approximateBlockMintingTime = 2000
 const maxBatchCount = 100
@@ -102,7 +103,7 @@ export class BlockIndexer {
             txs.map((tx) => monitorTransfers.addInternalTransaction(tx, block))
 
             // await Promise.all(txs.map((tx) => store.internalTransaction.addInternalTransaction(tx)))
-            const chunks = arrayChunk(txs, 50)
+            const chunks = arrayChunk(txs, InternalTxsChunkSize)
             await Promise.all(
               chunks.map((chunk) => store.internalTransaction.addInternalTransactions(chunk))
             )

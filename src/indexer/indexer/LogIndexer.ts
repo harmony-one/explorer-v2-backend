@@ -9,6 +9,7 @@ import {stores} from 'src/store'
 import {logTime} from 'src/utils/logTime'
 import {PostgresStorage} from 'src/store/postgres'
 import {arrayChunk} from 'src/utils/arrayChunk'
+import {LogsChunkSize} from 'src/indexer/constants'
 
 const approximateBlockMintingTime = 2000
 const blockRange = 10
@@ -57,7 +58,7 @@ export class LogIndexer {
         .number
 
       const addLogs = async (logs: Log[]) => {
-        const chunks = arrayChunk(logs, 50)
+        const chunks = arrayChunk(logs, LogsChunkSize)
         await Promise.all(chunks.map((chunk) => store.log.addLogs(chunk)))
         return logs
       }
