@@ -214,14 +214,14 @@ export class BlockIndexer {
 
       const failedCount = RPCUrls.getFailedCount(shardID) - failedCountBefore
 
-      if (lastFetchedBlockNumber > 0) {
-        await store.indexer.setLastIndexedBlockNumber(lastFetchedBlockNumber)
-      }
-
       const syncedToBlock = Math.min(
         lastFetchedBlockNumber,
         startBlock + blockRange * this.batchCount
       )
+      
+      if (syncedToBlock > 0) {
+        await store.indexer.setLastIndexedBlockNumber(lastFetchedBlockNumber)
+      }
 
       this.l.info(
         `Processed [${startBlock}, ${syncedToBlock}] ${
