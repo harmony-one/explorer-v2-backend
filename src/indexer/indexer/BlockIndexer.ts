@@ -16,7 +16,7 @@ const approximateBlockMintingTime = 2000
 const maxBatchCount = 100
 
 // todo to config
-const blockRange = 1
+const blockRange = 10
 
 const range = (num: number) => Array(num).fill(0)
 
