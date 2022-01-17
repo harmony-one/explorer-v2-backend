@@ -12,6 +12,7 @@ import {
   isOneOf,
   isFilters,
   Void,
+  isAddress,
 } from 'src/utils/validators'
 import {
   Filter,
@@ -27,11 +28,15 @@ export async function getLogsByField(
   value: TransactionQueryValue
 ): Promise<InternalTransaction[] | null> {
   validator({
-    field: isOneOf(field, ['block_number', 'transaction_hash', 'block_hash']),
+    field: isOneOf(field, ['block_number', 'transaction_hash', 'block_hash', 'address']),
   })
   if (field === 'block_number') {
     validator({
       value: isBlockNumber(value),
+    })
+  } else if (field === 'address') {
+    validator({
+      value: isAddress(value),
     })
   } else {
     validator({
@@ -41,5 +46,42 @@ export async function getLogsByField(
 
   return await withCache(['getLogsByField', arguments], () =>
     stores[shardID].log.getLogsByField(field, value)
+  )
+}
+
+export async function getDetailedLogsByField(
+  shardID: ShardID,
+  field: InternalTransactionQueryField,
+  value: TransactionQueryValue,
+  limit = 10,
+  offset = 0
+): Promise<InternalTransaction[] | null> {
+  validator({
+    field: isOneOf(field, ['block_number', 'transaction_hash', 'block_hash', 'address']),
+  })
+  if (field === 'block_number') {
+    validator({
+      value: isBlockNumber(value),
+    })
+  } else if (field === 'address') {
+    validator({
+      value: isAddress(value),
+    })
+  } else {
+    validator({
+      value: is64CharHexHash(value),
+    })
+  }
+
+  validator({
+    limit: isLimit(limit, 10),
+  })
+
+  validator({
+    offset: isOffset(offset),
+  })
+
+  return await withCache(['getDetailedLogsByField', arguments], () =>
+    stores[shardID].log.getDetailedLogsByField(field, value, limit, offset)
   )
 }

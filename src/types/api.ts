@@ -12,7 +12,11 @@ export type FilterProperty =
 
 export type TransactionQueryField = 'block_number' | 'block_hash' | 'hash' | 'hash_harmony'
 export type StakingTransactionQueryField = 'block_number' | 'block_hash' | 'hash'
-export type InternalTransactionQueryField = 'block_number' | 'transaction_hash' | 'block_hash'
+export type InternalTransactionQueryField =
+  | 'block_number'
+  | 'transaction_hash'
+  | 'block_hash'
+  | 'address'
 
 export type ContractQueryField = 'solidity_version' | 'ipfs_hash' | 'address' | 'creator_address'
 export type ContractQueryValue = string
