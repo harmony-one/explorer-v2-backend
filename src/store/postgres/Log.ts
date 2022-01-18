@@ -85,6 +85,7 @@ export class PostgresStorageLog implements IStorageLog {
         from logs l
         left join transactions t on t.hash = l.transaction_hash 
         where ${field}=$1
+        order by l.block_number desc
         offset ${offset} limit ${limit};
     `,
       [value]
