@@ -1,5 +1,5 @@
 import {IStorageLog} from 'src/store/interface'
-import {BlockHash, BlockNumber, InternalTransaction, Log, ShardID} from 'src/types/blockchain'
+import {BlockHash, BlockNumber, Log, LogDetailed} from 'src/types/blockchain'
 
 import {Query} from 'src/store/postgres/types'
 import {Filter, InternalTransactionQueryField, TransactionQueryValue} from 'src/types'
@@ -68,8 +68,27 @@ export class PostgresStorageLog implements IStorageLog {
   getLogsByField = async (
     field: InternalTransactionQueryField,
     value: TransactionQueryValue
-  ): Promise<InternalTransaction[]> => {
+  ): Promise<Log[]> => {
     const res = await this.query(`select * from logs where ${field}=$1;`, [value])
+    return res.map(fromSnakeToCamelResponse)
+  }
+
+  getDetailedLogsByField = async (
+    field: InternalTransactionQueryField,
+    value: TransactionQueryValue,
+    limit = 10,
+    offset = 0
+  ): Promise<LogDetailed[]> => {
+    const res = await this.query(
+      `
+        select l.*, t.input, t.timestamp
+        from logs l
+        left join transactions t on t.hash = l.transaction_hash 
+        where ${field}=$1
+        offset ${offset} limit ${limit};
+    `,
+      [value]
+    )
     return res.map(fromSnakeToCamelResponse)
   }
 }
