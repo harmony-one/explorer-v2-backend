@@ -80,6 +80,9 @@ create index if not exists idx_transactions_hash_harmony on transactions using h
 create index if not exists idx_transactions_block_hash on transactions using hash (block_hash);
 create index if not exists idx_transactions_block_number on transactions (block_number desc);
 create index if not exists idx_transactions_timestamp on transactions (timestamp);
+create index if not exists idx_transactions_from_block_number on transactions ("from", block_number desc);
+create index if not exists idx_transactions_to_block_number on transactions ("to", block_number desc);
+
 do
 $$
     begin
@@ -122,6 +125,8 @@ create table if not exists staking_transactions
 create index if not exists idx_staking_transactions_hash on staking_transactions using hash (hash);
 create index if not exists idx_staking_transactions_block_hash on staking_transactions using hash (block_hash);
 create index if not exists idx_staking_transactions_block_number on staking_transactions (block_number desc);
+create index if not exists idx_staking_transactions_from_block_number on staking_transactions ("from", block_number desc);
+create index if not exists idx_staking_transactions_to_block_number on staking_transactions ("to", block_number desc);
 
 do
 $$
@@ -223,6 +228,8 @@ create table if not exists internal_transactions
 
 create index if not exists idx_internal_transactions_transaction_hash on internal_transactions using hash (transaction_hash);
 create index if not exists idx_internal_transactions_block_number on internal_transactions (block_number desc);
+create index if not exists idx_internal_transactions_from_block_number on internal_transactions ("from", block_number desc);
+create index if not exists idx_internal_transactions_to_block_number on internal_transactions ("to", block_number desc);
 
 /*tracking create/create2 */
 create table if not exists contracts
