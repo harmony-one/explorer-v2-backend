@@ -2,9 +2,18 @@ import {IStorageLog} from 'src/store/interface'
 import {BlockHash, BlockNumber, Log, LogDetailed} from 'src/types/blockchain'
 
 import {Query} from 'src/store/postgres/types'
-import {Filter, InternalTransactionQueryField, TransactionQueryValue} from 'src/types'
+import {
+  EthGetLogParams,
+  Filter,
+  InternalTransactionQueryField,
+  TransactionQueryValue,
+} from 'src/types'
 import {buildSQLQuery} from 'src/store/postgres/filters'
-import {fromSnakeToCamelResponse} from 'src/store/postgres/queryMapper'
+import {
+  fromSnakeToCamelResponse,
+  mapLogToEthLog,
+  queryParamsConvert,
+} from 'src/store/postgres/queryMapper'
 
 export class PostgresStorageLog implements IStorageLog {
   query: Query
@@ -91,5 +100,54 @@ export class PostgresStorageLog implements IStorageLog {
       [value]
     )
     return res.map(fromSnakeToCamelResponse)
+  }
+
+  ethGetLogs = async (params: EthGetLogParams) => {
+    const {fromBlock, toBlock, address, topics, blockhash} = params
+    const whereClause = []
+
+    if (blockhash) {
+      whereClause.push('block_number = :blockhash')
+    } else {
+      whereClause.push('block_number >= :fromBlockInteger and block_number <= :toBlockInteger')
+    }
+
+    if (address) {
+      if (Array.isArray(address)) {
+        whereClause.push('address = any (:address)')
+      } else {
+        whereClause.push('address = :address')
+      }
+    }
+
+    if (topics) {
+      whereClause.push('topics @> :topics')
+    }
+
+    const queryParams = {
+      fromBlockInteger: fromBlock ? parseInt(fromBlock, 16) : undefined,
+      toBlockInteger: toBlock ? parseInt(toBlock, 16) : undefined,
+      address,
+      topics: topics ? `{${topics?.join(',')}}` : undefined, // convert topics array to SQL array
+      blockhash,
+    }
+
+    const filteredParams = Object.entries(queryParams).reduce((acc, [key, value]) => {
+      if (value !== undefined) acc[key] = value
+      return acc
+    }, {} as any)
+
+    const preparedQuery = queryParamsConvert(
+      `
+        select * from logs
+        where ${whereClause.length > 0 ? whereClause.join(' and ') : ''}
+        order by block_number desc, log_index asc
+    `,
+      filteredParams
+    )
+
+    const res = await this.query(preparedQuery.text, preparedQuery.values)
+
+    return res.map(fromSnakeToCamelResponse).map(mapLogToEthLog)
   }
 }

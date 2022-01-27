@@ -1,3 +1,5 @@
+import {Log} from 'src/types'
+
 export const mapNaming: Record<string, string> = {
   extra_data: 'extraData',
   gas_limit: 'gasLimit',
@@ -85,4 +87,26 @@ export const generateQuery = (o: Record<any, any>) => {
     query,
     params,
   }
+}
+
+const intToHex = (value: string | number) => '0x' + (+value).toString(16)
+
+export const mapLogToEthLog = (log: Log) => {
+  return {
+    ...log,
+    blockNumber: intToHex(log.blockNumber),
+    transactionIndex: intToHex(log.transactionIndex),
+    logIndex: intToHex(log.logIndex),
+  }
+}
+
+type QueryReducerArray = [string, any[], number]
+
+export function queryParamsConvert(parameterizedSql: string, params: Record<string, any>) {
+  const [text, values] = Object.entries(params).reduce(
+    ([sql, array, index], [key, value]) =>
+      [sql.replace(`:${key}`, `$${index}`), [...array, value], index + 1] as QueryReducerArray,
+    [parameterizedSql, [], 1] as QueryReducerArray
+  )
+  return {text, values}
 }

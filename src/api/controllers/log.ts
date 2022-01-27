@@ -15,6 +15,7 @@ import {
   isAddress,
 } from 'src/utils/validators'
 import {
+  EthGetLogParams,
   Filter,
   InternalTransactionQueryField,
   TransactionQueryField,
@@ -84,4 +85,8 @@ export async function getDetailedLogsByField(
   return await withCache(['getDetailedLogsByField', arguments], () =>
     stores[shardID].log.getDetailedLogsByField(field, value, limit, offset)
   )
+}
+
+export async function ethGetLogs(shardID: ShardID, params: EthGetLogParams): Promise<any> {
+  return stores[shardID].log.ethGetLogs(params)
 }
