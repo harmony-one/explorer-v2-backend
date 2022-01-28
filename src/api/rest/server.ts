@@ -51,7 +51,7 @@ export const RESTServer = async () => {
   routerWithShards0.use('/erc721', erc721Router, transport)
   routerWithShards0.use('/erc1155', erc1155Router, transport)
   routerWithShards0.use('/1wallet', oneWalletMetricsRouter, transport)
-  routerWithShards0.use('/', rpcRouter, transport)
+  routerWithShards0.use('/rpc', rpcRouter, transport)
 
   api.use('/v0', routerWithShards0)
 
