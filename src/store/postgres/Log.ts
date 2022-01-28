@@ -107,9 +107,14 @@ export class PostgresStorageLog implements IStorageLog {
     const whereClause = []
 
     if (blockhash) {
-      whereClause.push('block_number = :blockhash')
+      whereClause.push('block_hash = :blockhash')
     } else {
-      whereClause.push('block_number >= :fromBlockInteger and block_number <= :toBlockInteger')
+      if (fromBlock) {
+        whereClause.push('block_number >= :fromBlockInteger')
+      }
+      if (toBlock) {
+        whereClause.push('block_number <= :toBlockInteger')
+      }
     }
 
     if (address) {
@@ -141,7 +146,7 @@ export class PostgresStorageLog implements IStorageLog {
       `
         select * from logs
         where ${whereClause.length > 0 ? whereClause.join(' and ') : ''}
-        order by block_number desc, log_index asc
+        limit 1000
     `,
       filteredParams
     )
