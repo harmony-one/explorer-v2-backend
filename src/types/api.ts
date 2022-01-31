@@ -49,3 +49,11 @@ export type Filter = {
   orderBy?: FilterOrderBy
   filters: FilterEntry[]
 }
+
+export interface EthGetLogParams {
+  fromBlock: string
+  toBlock: string
+  address?: string | string[]
+  topics?: string[]
+  blockhash?: string
+}

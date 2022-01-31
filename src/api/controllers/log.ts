@@ -1,6 +1,6 @@
 import {storesAPI as stores} from 'src/store'
 import {InternalTransaction, ShardID, Transaction} from 'src/types/blockchain'
-import {validator} from 'src/utils/validators/validators'
+import {isHexString, validator} from 'src/utils/validators/validators'
 import {
   is64CharHexHash,
   isBlockNumber,
@@ -13,8 +13,10 @@ import {
   isFilters,
   Void,
   isAddress,
+  isTransactionHash,
 } from 'src/utils/validators'
 import {
+  EthGetLogParams,
   Filter,
   InternalTransactionQueryField,
   TransactionQueryField,
@@ -84,4 +86,50 @@ export async function getDetailedLogsByField(
   return await withCache(['getDetailedLogsByField', arguments], () =>
     stores[shardID].log.getDetailedLogsByField(field, value, limit, offset)
   )
+}
+
+export async function ethGetLogs(shardID: ShardID, params: EthGetLogParams): Promise<any> {
+  const {fromBlock, toBlock, blockhash, topics, address} = params
+  if (blockhash) {
+    validator({
+      blockhash: is64CharHexHash(blockhash),
+    })
+  } else {
+    if (fromBlock) {
+      validator({
+        fromBlock: () => [isHexString(fromBlock)],
+      })
+    }
+    if (toBlock) {
+      validator({
+        toBlock: () => [isHexString(toBlock)],
+      })
+    }
+  }
+
+  if (address) {
+    if (Array.isArray(address)) {
+      address.forEach((a) => {
+        validator({
+          address: isAddress(a),
+        })
+      })
+    } else {
+      validator({
+        address: isAddress(address),
+      })
+    }
+  }
+
+  if (topics) {
+    if (Array.isArray(topics)) {
+      topics.forEach((topic) => {
+        validator({
+          topics: isTransactionHash(topic),
+        })
+      })
+    }
+  }
+
+  return stores[shardID].log.ethGetLogs(params)
 }
