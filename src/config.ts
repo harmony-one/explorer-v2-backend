@@ -69,6 +69,11 @@ export const config = {
       isEnabled: toBool(process.env.API_REST_IS_ENABLED || '0'),
       port: +(process.env.API_REST_PORT || 3000),
     },
+    // JSON RPC endpoint available on POST /v0/rpc. Requires API_REST_IS_ENABLED=1
+    json_rpc: {
+      isEnabled: toBool(process.env.API_RPC_IS_ENABLED || '1'),
+      ethGetLogsLimit: +(process.env.RPC_GET_LOGS_LIMIT || 1024), // Blocks range limit for method "eth_getLogs"
+    },
     grpc: {
       isEnabled: toBool(process.env.API_GRPC_IS_ENABLED || '0'),
       port: 5051,

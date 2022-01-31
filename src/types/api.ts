@@ -51,8 +51,16 @@ export type Filter = {
 }
 
 export interface EthGetLogParams {
-  fromBlock: string
-  toBlock: string
+  fromBlock?: string | 'latest'
+  toBlock?: string | 'latest'
+  address?: string | string[]
+  topics?: string[]
+  blockhash?: string
+}
+
+export interface EthGetLogFilter {
+  from?: number
+  to?: number
   address?: string | string[]
   topics?: string[]
   blockhash?: string
