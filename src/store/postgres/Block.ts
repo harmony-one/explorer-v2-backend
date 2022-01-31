@@ -52,4 +52,9 @@ export class PostgresStorageBlock implements IStorageBlock {
 
     return res.map(fromSnakeToCamelResponse)
   }
+
+  getLatestBlockNumber = async (): Promise<number> => {
+    const res = await this.query(`select * from indexer_state where indexer_name = 'blocks'`, [])
+    return +res[0].last_synced_block_number
+  }
 }

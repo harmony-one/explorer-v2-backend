@@ -3,6 +3,7 @@ import {BlockHash, BlockNumber, Log, LogDetailed} from 'src/types/blockchain'
 
 import {Query} from 'src/store/postgres/types'
 import {
+  EthGetLogFilter,
   EthGetLogParams,
   Filter,
   InternalTransactionQueryField,
@@ -102,23 +103,28 @@ export class PostgresStorageLog implements IStorageLog {
     return res.map(fromSnakeToCamelResponse)
   }
 
-  ethGetLogs = async (params: EthGetLogParams) => {
-    const {fromBlock, toBlock, address, topics, blockhash} = params
+  ethGetLogs = async (filter: EthGetLogFilter) => {
+    const {topics, ...restFilters} = filter
     const whereClause = []
 
-    if (blockhash) {
+    const queryParams: Omit<EthGetLogFilter, 'topics'> & {topics?: string} = {...restFilters}
+    if (topics) {
+      queryParams.topics = `{${topics.join(',')}}` // convert topics array to SQL array
+    }
+
+    if (filter.blockhash) {
       whereClause.push('block_hash = :blockhash')
     } else {
-      if (fromBlock) {
-        whereClause.push('block_number >= :fromBlockInteger')
+      if (filter.from) {
+        whereClause.push('block_number >= :from')
       }
-      if (toBlock) {
-        whereClause.push('block_number <= :toBlockInteger')
+      if (filter.to) {
+        whereClause.push('block_number <= :to')
       }
     }
 
-    if (address) {
-      if (Array.isArray(address)) {
+    if (filter.address) {
+      if (Array.isArray(filter.address)) {
         whereClause.push('address = any (:address)')
       } else {
         whereClause.push('address = :address')
@@ -129,26 +135,13 @@ export class PostgresStorageLog implements IStorageLog {
       whereClause.push('topics @> :topics')
     }
 
-    const queryParams = {
-      fromBlockInteger: fromBlock ? parseInt(fromBlock, 16) : undefined,
-      toBlockInteger: toBlock ? parseInt(toBlock, 16) : undefined,
-      address,
-      topics: topics ? `{${topics?.join(',')}}` : undefined, // convert topics array to SQL array
-      blockhash,
-    }
-
-    const filteredParams = Object.entries(queryParams).reduce((acc, [key, value]) => {
-      if (value !== undefined) acc[key] = value
-      return acc
-    }, {} as any)
-
     const preparedQuery = queryParamsConvert(
       `
         select * from logs
         where ${whereClause.length > 0 ? whereClause.join(' and ') : ''}
-        limit 1000
+        order by log_index asc
     `,
-      filteredParams
+      queryParams
     )
 
     const res = await this.query(preparedQuery.text, preparedQuery.values)
