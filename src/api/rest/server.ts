@@ -1,4 +1,5 @@
 import express, {Router} from 'express'
+import compression from 'compression'
 import {config} from 'src/config'
 import http, {Server} from 'http'
 import bodyParser from 'body-parser'
@@ -30,6 +31,7 @@ export const RESTServer = async () => {
   }
 
   const api = express()
+  api.use(compression())
   api.use(cors())
   api.use(bodyParser.json())
   api.disable('x-powered-by')
