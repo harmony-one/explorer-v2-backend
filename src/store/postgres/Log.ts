@@ -139,13 +139,15 @@ export class PostgresStorageLog implements IStorageLog {
       `
         select * from logs
         where ${whereClause.length > 0 ? whereClause.join(' and ') : ''}
-        order by log_index asc
     `,
       queryParams
     )
 
     const res = await this.query(preparedQuery.text, preparedQuery.values)
 
-    return res.map(fromSnakeToCamelResponse).map(mapLogToEthLog)
+    return res
+      .map(fromSnakeToCamelResponse)
+      .sort((a: Log, b: Log) => +a.logIndex - +b.logIndex)
+      .map(mapLogToEthLog)
   }
 }
