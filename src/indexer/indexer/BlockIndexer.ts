@@ -219,7 +219,7 @@ export class BlockIndexer {
         startBlock + blockRange * this.batchCount
       )
       
-      if (syncedToBlock > 0) {
+      if (lastFetchedBlockNumber > 0) {
         await store.indexer.setLastIndexedBlockNumber(lastFetchedBlockNumber)
       }
 
