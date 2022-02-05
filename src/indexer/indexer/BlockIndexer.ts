@@ -9,6 +9,7 @@ import {logTime} from 'src/utils/logTime'
 import {PostgresStorage} from 'src/store/postgres'
 import {AddressIndexer} from './addressIndexer'
 import {contractAddressIndexer} from './сontractAddressIndexer'
+import {config} from 'src/config'
 import {internalTransactionsIgnoreListFilter} from './ignoreList/internalTransactionIgnoreList'
 import * as monitorTransfers from './metrics/transfers'
 
@@ -16,7 +17,7 @@ const approximateBlockMintingTime = 2000
 const maxBatchCount = 100
 
 // todo to config
-const blockRange = 10
+const blockRange = config.indexer.blockIndexerBlockRange
 
 const range = (num: number) => Array(num).fill(0)
 
@@ -26,14 +27,21 @@ export class BlockIndexer {
   private l: LoggerModule
   private batchCount: number
   readonly store: PostgresStorage
+  private processExactBlock: null | BlockNumber
 
-  constructor(shardID: ShardID, batchCount: number = maxBatchCount, initialStartBlock: number = 0) {
+  constructor(
+    shardID: ShardID,
+    batchCount: number = maxBatchCount,
+    initialStartBlock: number = 0,
+    processExactBlock: null | BlockNumber = null
+  ) {
     this.l = logger(module, `shard${shardID}`)
     this.shardID = shardID
     this.initialStartBlock = initialStartBlock
     this.batchCount = batchCount
     this.l.info('Created')
     this.store = stores[shardID]
+    this.processExactBlock = processExactBlock
   }
 
   increaseBatchCount = () => {
@@ -54,8 +62,11 @@ export class BlockIndexer {
       const failedCountBefore = RPCUrls.getFailedCount(shardID)
       const latestSyncedBlock = await store.indexer.getLastIndexedBlockNumber()
 
-      const startBlock =
-        latestSyncedBlock && latestSyncedBlock > 0 ? latestSyncedBlock + 1 : this.initialStartBlock
+      const startBlock = this.processExactBlock
+        ? this.processExactBlock
+        : latestSyncedBlock && latestSyncedBlock > 0
+        ? latestSyncedBlock + 1
+        : this.initialStartBlock
 
       // todo check if node stuck
       const latestBlockchainBlock = (await RPCClient.getBlockByNumber(shardID, 'latest', false))
@@ -99,13 +110,14 @@ export class BlockIndexer {
               addressIndexer.add(block, tx.transactionHash, 'internal_transaction', tx.from, tx.to)
             })
 
-            txs.map((tx) => monitorTransfers.addInternalTransaction(tx, block))
-
+            // txs.map((tx) => monitorTransfers.addInternalTransaction(tx, block))
 
             // await Promise.all(txs.map((tx) => store.internalTransaction.addInternalTransaction(tx)))
             const chunks = arrayChunk(txs, defaultChunkSize)
             for (const chunk of chunks) {
-                await Promise.all(chunk.map((tx: any) => store.internalTransaction.addInternalTransaction(tx)))
+              await Promise.all(
+                chunk.map((tx: any) => store.internalTransaction.addInternalTransaction(tx))
+              )
             }
 
             await Promise.all(
@@ -123,7 +135,7 @@ export class BlockIndexer {
       const addTransactions = (blocks: Block[]) => {
         return Promise.all(
           blocks.map(async (block) => {
-            block.transactions.map(monitorTransfers.addTransaction)
+            // block.transactions.map(monitorTransfers.addTransaction)
 
             block.transactions.forEach((tx) => {
               // todo handle empty create to addresses
@@ -139,7 +151,7 @@ export class BlockIndexer {
       const addStakingTransactions = (blocks: Block[]) => {
         return Promise.all(
           blocks.map(async (block) => {
-            block.stakingTransactions.map(monitorTransfers.addStakingTransaction)
+            // block.stakingTransactions.map(monitorTransfers.addStakingTransaction)
             block.stakingTransactions.forEach((tx) => {
               addressIndexer.add(
                 block,
@@ -218,7 +230,11 @@ export class BlockIndexer {
         lastFetchedBlockNumber,
         startBlock + blockRange * this.batchCount
       )
-      
+
+      if (this.processExactBlock) {
+        return
+      }
+
       if (lastFetchedBlockNumber > 0) {
         await store.indexer.setLastIndexedBlockNumber(lastFetchedBlockNumber)
       }

@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "nodemon",
     "start": "ts-node  -r tsconfig-paths/register src/index.ts",
+    "fix-missing-blocks": "ts-node  -r tsconfig-paths/register src/cli/fixMissingBlocks.ts",
     "start:prod": "node dist/main.js",
     "build": "webpack --config webpack.config.js && cp -r src/store/postgres/sql dist && cp .env dist && cp src/api/webSocket/index.html dist",
     "build:dev": "tsc -w",

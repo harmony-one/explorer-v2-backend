@@ -91,6 +91,7 @@ export const config = {
     // set to the height where smart contracts were introduced on the chain
     initialLogsSyncingHeight: +(process.env.INDEXER_LOG_INITIAL_BLOCK_SYNCING_HEIGHT || 3500000),
     batchCount: +(process.env.INDEXER_BATCH_COUNT || 100),
+    blockIndexerBlockRange: +(process.env.BLOCK_INDEXER_BLOCK_RANGE || 10),
     rpc: {
       transport: process.env.INDEXER_RPC_TRANSPORT || 'ws',
       urls: [
