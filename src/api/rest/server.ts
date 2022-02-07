@@ -1,4 +1,5 @@
 import express, {Router} from 'express'
+import compression from 'compression'
 import {config} from 'src/config'
 import http, {Server} from 'http'
 import bodyParser from 'body-parser'
@@ -18,17 +19,19 @@ import {erc721Router} from 'src/api/rest/routes/ERC721'
 import {erc1155Router} from 'src/api/rest/routes/ERC1155'
 import {oneWalletMetricsRouter} from 'src/api/rest/routes/oneWalletMetrics'
 import {warmUpCache} from 'src/api/controllers/cache/warmUpCache'
+import {rpcRouter} from 'src/api/rest/routes/rpcRouter'
 
 import {transport} from 'src/api/rest/transport'
 const l = logger(module)
 
 export const RESTServer = async () => {
   if (!config.api.rest.isEnabled) {
-    l.debug(`RPC API disabled`)
+    l.debug(`REST API is disabled`)
     return
   }
 
   const api = express()
+  api.use(compression())
   api.use(cors())
   api.use(bodyParser.json())
   api.disable('x-powered-by')
@@ -50,6 +53,12 @@ export const RESTServer = async () => {
   routerWithShards0.use('/erc721', erc721Router, transport)
   routerWithShards0.use('/erc1155', erc1155Router, transport)
   routerWithShards0.use('/1wallet', oneWalletMetricsRouter, transport)
+
+  if (config.api.json_rpc.isEnabled) {
+    routerWithShards0.use('/rpc', rpcRouter, transport)
+  } else {
+    l.debug(`RPC API is disabled`)
+  }
 
   api.use('/v0', routerWithShards0)
 

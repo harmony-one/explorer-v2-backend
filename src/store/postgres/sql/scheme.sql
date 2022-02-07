@@ -51,6 +51,7 @@ create index if not exists idx_logs_block_hash on logs using hash (block_hash);
 create index if not exists idx_logs_block_number on logs (block_number desc);
 create index if not exists idx_logs_block_number_asc on logs (block_number);
 create index if not exists idx_logs_block_number_address on logs (block_number desc, address);
+create index if not exists idx_gin_logs_topics on logs using GIN (topics);
 
 create table if not exists transactions
 (

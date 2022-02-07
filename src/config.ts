@@ -69,6 +69,11 @@ export const config = {
       isEnabled: toBool(process.env.API_REST_IS_ENABLED || '0'),
       port: +(process.env.API_REST_PORT || 3000),
     },
+    // JSON RPC endpoint available on POST /v0/rpc. Requires API_REST_IS_ENABLED=1
+    json_rpc: {
+      isEnabled: toBool(process.env.API_RPC_IS_ENABLED || '1'),
+      ethGetLogsLimit: +(process.env.RPC_GET_LOGS_LIMIT || 1024), // Blocks range limit for method "eth_getLogs"
+    },
     grpc: {
       isEnabled: toBool(process.env.API_GRPC_IS_ENABLED || '0'),
       port: 5051,
@@ -86,6 +91,7 @@ export const config = {
     // set to the height where smart contracts were introduced on the chain
     initialLogsSyncingHeight: +(process.env.INDEXER_LOG_INITIAL_BLOCK_SYNCING_HEIGHT || 3500000),
     batchCount: +(process.env.INDEXER_BATCH_COUNT || 100),
+    blockIndexerBlockRange: +(process.env.BLOCK_INDEXER_BLOCK_RANGE || 10),
     rpc: {
       transport: process.env.INDEXER_RPC_TRANSPORT || 'ws',
       urls: [

@@ -2,9 +2,19 @@ import {IStorageLog} from 'src/store/interface'
 import {BlockHash, BlockNumber, Log, LogDetailed} from 'src/types/blockchain'
 
 import {Query} from 'src/store/postgres/types'
-import {Filter, InternalTransactionQueryField, TransactionQueryValue} from 'src/types'
+import {
+  EthGetLogFilter,
+  EthGetLogParams,
+  Filter,
+  InternalTransactionQueryField,
+  TransactionQueryValue,
+} from 'src/types'
 import {buildSQLQuery} from 'src/store/postgres/filters'
-import {fromSnakeToCamelResponse} from 'src/store/postgres/queryMapper'
+import {
+  fromSnakeToCamelResponse,
+  mapLogToEthLog,
+  queryParamsConvert,
+} from 'src/store/postgres/queryMapper'
 
 export class PostgresStorageLog implements IStorageLog {
   query: Query
@@ -91,5 +101,53 @@ export class PostgresStorageLog implements IStorageLog {
       [value]
     )
     return res.map(fromSnakeToCamelResponse)
+  }
+
+  ethGetLogs = async (filter: EthGetLogFilter) => {
+    const {topics, ...restFilters} = filter
+    const whereClause = []
+
+    const queryParams: Omit<EthGetLogFilter, 'topics'> & {topics?: string} = {...restFilters}
+    if (topics) {
+      queryParams.topics = `{${topics.join(',')}}` // convert topics array to SQL array
+    }
+
+    if (filter.blockhash) {
+      whereClause.push('block_hash = :blockhash')
+    } else {
+      if (filter.from) {
+        whereClause.push('block_number >= :from')
+      }
+      if (filter.to) {
+        whereClause.push('block_number <= :to')
+      }
+    }
+
+    if (filter.address) {
+      if (Array.isArray(filter.address)) {
+        whereClause.push('address = any (:address)')
+      } else {
+        whereClause.push('address = :address')
+      }
+    }
+
+    if (topics) {
+      whereClause.push('topics @> :topics')
+    }
+
+    const preparedQuery = queryParamsConvert(
+      `
+        select * from logs
+        where ${whereClause.length > 0 ? whereClause.join(' and ') : ''}
+    `,
+      queryParams
+    )
+
+    const res = await this.query(preparedQuery.text, preparedQuery.values)
+
+    return res
+      .map(fromSnakeToCamelResponse)
+      .sort((a: Log, b: Log) => +a.logIndex - +b.logIndex)
+      .map(mapLogToEthLog)
   }
 }

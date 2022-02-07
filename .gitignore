@@ -104,5 +104,6 @@ dist
 *.iml
 *.env
 .env
+.env*
 *.env.prod
 keys/
