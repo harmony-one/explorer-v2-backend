@@ -1,6 +1,13 @@
 import {logger} from 'src/logger'
 import {IStorageContract} from 'src/store/interface'
-import {Contract, Filter, Transaction, ContractQueryField, ContractQueryValue} from 'src/types'
+import {
+  Contract,
+  Filter,
+  Transaction,
+  ContractQueryField,
+  ContractQueryValue,
+  ContractEvent,
+} from 'src/types'
 import {Query} from 'src/store/postgres/types'
 import {fromSnakeToCamelResponse, generateQuery} from 'src/store/postgres/queryMapper'
 import {buildSQLQuery} from 'src/store/postgres/filters'
@@ -33,5 +40,24 @@ export class PostgresStorageContract implements IStorageContract {
   ): Promise<Transaction[]> => {
     const res = await this.query(`select * from contracts where ${field}=$1;`, [value])
     return res.map(fromSnakeToCamelResponse)
+  }
+
+  addContractEvent = (event: ContractEvent) => {
+    return this.query(
+      `insert into contract_events (block_number, transaction_type, event_type, transaction_index, transaction_hash, address, "from", "to", value)
+            values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            on conflict do nothing;`,
+      [
+        event.blockNumber,
+        event.transactionType,
+        event.eventType,
+        event.transactionIndex,
+        event.transactionHash,
+        event.address,
+        event.from,
+        event.to,
+        event.value,
+      ]
+    )
   }
 }

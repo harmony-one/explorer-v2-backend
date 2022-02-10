@@ -17,7 +17,10 @@ const propertyToString = (property: string) => {
 export const buildSQLQuery = (query: Filter) => {
   const safeSQL = (value: any) => {
     // todo safe trim value
-    return (value + '').split(' ').join('').replace(/[^a-zA-Z0-9 _-]/g, '')
+    return (value + '')
+      .split(' ')
+      .join('')
+      .replace(/[^a-zA-Z0-9 \\'_-]/g, '')
   }
 
   const whereQuery = query.filters

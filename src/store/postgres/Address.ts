@@ -43,34 +43,24 @@ export class PostgresStorageAddress implements IStorageAddress {
     let txs = []
 
     if (type === 'erc20' || type === 'erc721') {
-      // Only latest 100 entries currently supported
-      if (offset + limit > 100) {
-        return []
-      }
-      const res = await this.query(
-        `select transaction_hashes from address2transaction_fifo where address=$1 and transaction_type=$2`,
+      txs = await this.query(
+        `select t.* from contract_events ce 
+            join transactions t on t.hash = ce.transaction_hash 
+            where ce.transaction_type = $2
+            and (ce."from" = $1 or ce."to" = $1)
+            order by ce.block_number desc, ce.transaction_index desc
+            offset ${offset}
+            limit ${limit}`,
         [address, type]
       )
 
-      if (!res || !res[0]) {
-        return []
-      }
-
-      const allHashes = res[0].transaction_hashes
-
-      if (!allHashes || !allHashes.length) {
-        return []
-      }
-
-      const hashes = allHashes.slice(offset, offset + limit)
-      txs = await this.query(`select * from transactions where hash = any ($1)`, [hashes])
       // for erc20 and erc721 we add logs to payload
-      txs = (await Promise.all(
+      txs = await Promise.all(
         txs.map(fromSnakeToCamelResponse).map(async (tx: any) => {
           tx.logs = await this.query('select * from logs where transaction_hash=$1', [tx.hash])
           return tx
         })
-      )) as Address2Transaction[]
+      )
     } else if (type === 'internal_transaction') {
       txs = await this.query(
         `

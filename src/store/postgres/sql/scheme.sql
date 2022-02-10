@@ -375,3 +375,39 @@ create table if not exists wallets_count
     date_string varchar unique not null,
     count bigint not null
 );
+
+do
+$$
+    begin
+        ALTER TYPE transaction_type ADD VALUE 'erc1155' after 'erc721';
+    exception
+        when duplicate_object then null;
+    end
+$$;
+
+do
+$$
+    begin
+        create type contract_event_type as enum (
+            'Transfer',
+            'TransferBatch',
+            'TransferSingle'
+            );
+    exception
+        when duplicate_object then null;
+    end
+$$;
+
+create table if not exists contract_events
+(
+    block_number        bigint              not null,
+    transaction_type    transaction_type    not null,
+    event_type          contract_event_type not null,
+    transaction_index   smallint,
+    transaction_hash    char(66)            not null,
+    address             char(42)            not null,
+    "from"              char(42)            not null,
+    "to"                char(42)            not null,
+    value               numeric,
+    unique (block_number, address, transaction_hash, transaction_type)
+);

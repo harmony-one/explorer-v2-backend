@@ -1,14 +1,4 @@
-import {
-  Log,
-  Address,
-  IERC721,
-  Address2Transaction,
-  BlockNumber,
-  TransactionHash,
-  TransactionHarmonyHash,
-  AddressTransactionType,
-  IERC721TokenID,
-} from 'src/types'
+import {Log, IERC721, ContractEventType, ContractEvent} from 'src/types'
 import {PostgresStorage} from 'src/store/postgres'
 import {ABI} from './ABI'
 import {logger} from 'src/logger'
@@ -20,7 +10,7 @@ import {logTime} from 'src/utils/logTime'
 
 const l = logger(module, 'erc1155')
 
-const transferEventName = 'TransferSingle'
+const transferEventName = ContractEventType.TransferSingle
 const transferEvent = getEntryByName(transferEventName)!.signature
 
 // todo track transfer batch
@@ -36,14 +26,6 @@ type IParams = {
 //
 // todo filter out other topics
 
-type setEntry = {
-  address: Address
-  blockNumber: BlockNumber
-  transactionHash: TransactionHash
-  tokenId: IERC721TokenID
-  value: string | number
-}
-
 // 1155
 /*
 create token
@@ -57,61 +39,45 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
   }
 
   const tokenAddress = filteredLogs[0].address
+  const addressesToUpdate = new Set<{address: string; tokenId: string}>() // unique addresses of senders and recipients
 
-  const addressesForUpdate = new Map<Address, setEntry>()
-
-  for (const log of filteredLogs) {
-    const [topic0, ...topics] = log.topics
-    const {operator, from, to, id: tokenId, value} = decodeLog(transferEventName, log.data, topics)
-
-    addressesForUpdate.set(from, {
-      address: from,
-      blockNumber: +log.blockNumber,
-      transactionHash: log.transactionHash,
-      tokenId,
-      value,
+  const contractEvents = filteredLogs
+    .map((log) => {
+      const [topic0, ...topics] = log.topics
+      const {from, to, value, id: tokenId} = decodeLog(transferEventName, log.data, topics)
+      if (![from, to].includes(zeroAddress)) {
+        addressesToUpdate.add({address: from, tokenId})
+        addressesToUpdate.add({address: to, tokenId})
+        return {
+          address: normalizeAddress(tokenAddress),
+          from: normalizeAddress(from),
+          to: normalizeAddress(to),
+          value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
+          blockNumber: log.blockNumber,
+          transactionIndex: log.transactionIndex,
+          transactionHash: log.transactionHash,
+          transactionType: 'erc1155',
+          eventType: transferEventName,
+        } as ContractEvent
+      }
     })
-    addressesForUpdate.set(to, {
-      address: to,
-      blockNumber: +log.blockNumber,
-      transactionHash: log.transactionHash,
-      tokenId,
-      value,
-    })
-  }
-
-  const arrFromSet = [...addressesForUpdate.values()].filter(
-    (o) => ![zeroAddress].includes(o.address)
-  )
-  arrFromSet.forEach((o) => {
-    o.address = normalizeAddress(o.address)!
-  })
+    .filter((e) => e) as ContractEvent[]
 
   // add related txs we mark them 721 table as all nft
   // todo add to token address
-  const setAddress2Transactions = arrFromSet
-    .map(
-      (o) =>
-        ({
-          blockNumber: o.blockNumber,
-          transactionHash: o.transactionHash,
-          address: o.address,
-          transactionType: 'erc721',
-        } as Address2Transaction)
-    )
-    .map((o) => store.address.addAddress2Transaction(o))
+  const addEventsPromises = contractEvents.map((e) => store.contract.addContractEvent(e))
 
-  const setUpdateNeeded = arrFromSet.map((a) =>
-    store.erc1155.setNeedUpdateAsset(tokenAddress, a.tokenId!)
+  const updateAssetPromises = [...addressesToUpdate.values()].map((item) =>
+    store.erc1155.setNeedUpdateAsset(tokenAddress, item.tokenId)
   )
 
-  const setUpdateBalanceNeeded = arrFromSet.map((a) =>
-    store.erc1155.setNeedUpdateBalance(a.address!, tokenAddress, a.tokenId!)
+  const updateAssetBalancesPromises = [...addressesToUpdate.values()].map((item) =>
+    store.erc1155.setNeedUpdateBalance(item.address, tokenAddress, item.tokenId)
   )
 
-  await Promise.all([...setUpdateNeeded, ...setAddress2Transactions, ...setUpdateBalanceNeeded])
+  await Promise.all([...updateAssetPromises, ...addEventsPromises, ...updateAssetBalancesPromises])
 
   l.info(
-    `${setUpdateNeeded.length} tokens marked need update balances for "${token.name}" ${token.address}`
+    `${updateAssetPromises.length} tokens marked need update balances for "${token.name}" ${token.address}`
   )
 }
