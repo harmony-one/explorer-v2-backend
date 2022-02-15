@@ -376,6 +376,8 @@ export enum ContractEventType {
   TransferSingle = 'TransferSingle',
 }
 
+export type ContractType = 'erc20' | 'erc721' | 'erc1155'
+
 export type ContractEvent = {
   address: string
   from: string
@@ -384,6 +386,6 @@ export type ContractEvent = {
   blockNumber: string
   transactionIndex: string
   transactionHash: string
-  transactionType: 'erc20' | 'erc721' | 'erc1155'
+  transactionType: ContractType
   eventType: ContractEventType
 }
