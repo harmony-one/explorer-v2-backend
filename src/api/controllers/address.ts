@@ -84,6 +84,30 @@ export async function getRelatedTransactionsByType(
   )
 }
 
+export async function getRelatedTransactionsCountByType(
+  shardID: ShardID,
+  address: Address,
+  type: AddressTransactionType
+) {
+  validator({
+    shardID: isShard(shardID),
+    address: isAddress(address),
+    type: isOneOf(type, [
+      'transaction',
+      'staking_transaction',
+      'internal_transaction',
+      'erc20',
+      'erc721',
+    ]),
+  })
+
+  return await withCache(
+    ['getRelatedTransactionsCountByType', arguments],
+    () => stores[shardID].address.getRelatedTransactionsCountByType(address, type),
+    30 * 1000
+  )
+}
+
 export async function getContractsByField(
   shardID: ShardID,
   field: ContractQueryField,

@@ -102,4 +102,39 @@ export class PostgresStorageAddress implements IStorageAddress {
       .map(fromSnakeToCamelResponse)
       .sort((a: InternalTransaction, b: InternalTransaction) => b.blockNumber - a.blockNumber)
   }
+
+  getRelatedTransactionsCountByType = async (
+    address: Address,
+    type: AddressTransactionType
+  ): Promise<number> => {
+    if (type === 'erc20' || type === 'erc721') {
+      const [{count}] = await this.query(
+        `select count(t.*) from contract_events ce 
+            join transactions t on t.hash = ce.transaction_hash 
+            where ce.transaction_type = $2
+            and (ce."from" = $1 or ce."to" = $1)`,
+        [address, type]
+      )
+      return count
+    } else {
+      let tableName = 'transactions'
+      if (type === 'staking_transaction') {
+        tableName = 'staking_transactions'
+      } else if (type === 'internal_transaction') {
+        tableName = 'internal_transactions'
+      }
+      const [{count}] = await this.query(
+        `
+      select count(*)
+        from (
+            (select * from ${tableName} t where t.from = $1)
+            union all
+            (select * from ${tableName} t where t.to = $1)
+        ) t
+    `,
+        [address]
+      )
+      return count
+    }
+  }
 }
