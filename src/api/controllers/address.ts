@@ -42,25 +42,20 @@ export async function getRelatedTransactionsByType(
     ]),
   })
 
-  /*
   if (filter) {
     validator({
       offset: isOffset(filter.offset),
-      limit: isLimit(filter.limit),
+      limit: isLimit(filter.limit, 5000),
       orderBy: isOrderBy(filter.orderBy, ['block_number']),
       orderDirection: isOrderDirection(filter.orderDirection),
-      filter: isFilters(filter.filters, ['block_number']),
     })
-  } else {
-    filter = {
-      offset: 0,
-      limit: 10,
-      orderBy: 'block_number',
-      orderDirection: 'desc',
-      filters: [],
+
+    if (filter.filters) {
+      validator({
+        filter: isFilters(filter.filters, ['block_number', 'timestamp']),
+      })
     }
   }
-  */
 
   // todo validation
   filter = {
@@ -68,14 +63,14 @@ export async function getRelatedTransactionsByType(
     limit: filter ? filter.limit : 10,
     orderBy: 'block_number',
     orderDirection: 'desc',
-    filters: [],
+    filters: filter && filter.filters ? filter.filters : [],
   }
 
-  filter.filters.push({
-    value: `'${address}'`,
-    type: 'eq',
-    property: 'address',
-  })
+  // filter.filters.push({
+  //   value: `'${address}'`,
+  //   type: 'eq',
+  //   property: 'address',
+  // })
 
   return await withCache(
     ['getRelatedTransactionsByType', arguments],

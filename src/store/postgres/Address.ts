@@ -44,11 +44,15 @@ export class PostgresStorageAddress implements IStorageAddress {
 
     if (type === 'erc20' || type === 'erc721') {
       txs = await this.query(
-        `select t.* from contract_events ce 
-            join transactions t on t.hash = ce.transaction_hash 
-            where ce.transaction_type = $2
-            and (ce."from" = $1 or ce."to" = $1)
-            order by ce.block_number desc, ce.transaction_index desc
+        `
+            select t.*
+            from (
+                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by block_number desc)
+                 union all
+                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by block_number desc)
+            ) ce
+            join transactions t on t.hash = ce.transaction_hash
+            order by ce.block_number desc
             offset ${offset}
             limit ${limit}`,
         [address, type]
@@ -82,6 +86,7 @@ export class PostgresStorageAddress implements IStorageAddress {
       if (type === 'staking_transaction') {
         txsTable = 'staking_transactions'
       }
+      const filterQuery = buildSQLQuery(filter)
       txs = await this.query(
         `
         select t.*
@@ -90,11 +95,9 @@ export class PostgresStorageAddress implements IStorageAddress {
             union all
             (select * from ${txsTable} t where t.to = $1 order by block_number desc)
         ) t
-        order by block_number desc
-        offset $2
-        limit $3
+        ${filterQuery}
       `,
-        [address, offset, limit]
+        [address]
       )
     }
 

@@ -60,4 +60,38 @@ export class PostgresStorageContract implements IStorageContract {
       ]
     )
   }
+
+  addContractEventsBatch = (events: ContractEvent[]) => {
+    const paramsNumber = 9
+    const valuesList = events
+      .map(
+        (e, eventIndex) =>
+          '(' +
+          Array(paramsNumber)
+            .fill(null)
+            .map((n, index) => '$' + (index + eventIndex * paramsNumber + 1))
+            .join(', ') +
+          ')'
+      )
+      .join(',')
+    const paramsList = events.flatMap((event) => {
+      return [
+        event.blockNumber,
+        event.transactionType,
+        event.eventType,
+        event.transactionIndex,
+        event.transactionHash,
+        event.address,
+        event.from,
+        event.to,
+        event.value,
+      ]
+    })
+    return this.query(
+      `insert into contract_events (block_number, transaction_type, event_type, transaction_index, transaction_hash, address, "from", "to", value)
+            values ${valuesList}
+            on conflict do nothing;`,
+      paramsList
+    )
+  }
 }

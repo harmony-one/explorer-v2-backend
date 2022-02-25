@@ -5,9 +5,10 @@
  * 2) get logs with given blocks range
  * 3) filter logs with contract addresses from step 1, parse with event type (Transfer, TransferSingle)
  * 4) write parsed events to table 'contract_events'
- * 4) goto step 2, repeat
+ * 5) goto step 2, repeat
  * */
 
+import fs from 'fs'
 import {init as configInit} from 'src/config'
 import {ContractEvent, ContractEventType, ContractType, Log} from 'src/types'
 import {logger} from 'src/logger'
@@ -21,9 +22,12 @@ import {normalizeAddress} from 'src/utils/normalizeAddress'
 const l = logger(module, `ContractEventsMigrator`)
 
 const SHARD_ID = 0
-const START_BLOCK_NUMBER = 5000000
-const FINISH_BLOCK_NUMBER = 30000000
+const START_BLOCK_NUMBER = 23167800 // start block_number from logs table
+const FINISH_BLOCK_NUMBER = 23281610 // end block_number from logs table
 const BLOCKS_BATCH_SIZE = 1000
+
+const SUCCESS_SLEEP_TIMEOUT = 100
+const FAIL_SLEEP_TIMEOUT = 60000
 
 const sleep = (timeout: number) => new Promise((resolve) => setTimeout(resolve, timeout))
 
@@ -47,6 +51,17 @@ const getLogs = (blocksFrom: number, blocksTo: number) => {
     // offset: 0,
     limit: 100000000, // do not comment - required by filter (otherwise will be set to 10 by default)
   })
+}
+
+const getTokensMapFromFile = (filename: string) => {
+  const tokensMap: Record<string, string> = {}
+  fs.readFileSync(filename, 'utf8')
+    .split(/\r?\n/)
+    .forEach((line, i) => {
+      const [address, _, symbol] = line.split('\t')
+      tokensMap[address] = symbol
+    })
+  return tokensMap
 }
 
 const getErc20Map = async () => {
@@ -100,9 +115,15 @@ const mapContractEvent = (
 
 const writeContractEventsToDb = async (events: ContractEvent[]) => {
   const store = stores[SHARD_ID]
-  console.time('db_write')
   await Promise.all(events.map((e) => store.contract.addContractEvent(e)))
-  console.timeEnd('db_write')
+}
+
+const writeContractEventsToDbBatch = async (events: ContractEvent[]) => {
+  const size = 2000
+  const store = stores[SHARD_ID]
+  for (let i = 0; i < events.length; i += size) {
+    await store.contract.addContractEventsBatch(events.slice(i, i + size))
+  }
 }
 
 const parseLogs = (
@@ -134,6 +155,9 @@ const startMigration = async () => {
   let blocksTo = START_BLOCK_NUMBER + BLOCKS_BATCH_SIZE - 1
 
   l.info('Retrieving all erc20 contracts data...')
+  // const erc20Map = getTokensMapFromFile('src/cli/erc20_list.txt')
+  // const erc721Map = getTokensMapFromFile('src/cli/erc721_list.txt')
+  // const erc1155Map = getTokensMapFromFile('src/cli/erc1155_list.txt')
   const erc20Map = await getErc20Map()
   const erc721Map = await getErc721Map()
   const erc1155Map = await getErc1155Map()
@@ -150,7 +174,9 @@ const startMigration = async () => {
 
   while (!isStopped) {
     try {
+      console.time('get_logs')
       const logs = await getLogs(blocksFrom, blocksTo)
+      console.timeEnd('get_logs')
       l.info(
         `Received ${logs.length} logs for blocks ${blocksFrom} - ${blocksTo} (${BLOCKS_BATCH_SIZE} blocks)`
       )
@@ -160,6 +186,7 @@ const startMigration = async () => {
 
       if (logs.length === 0) {
         increaseBlocksNumber()
+        await sleep(100)
         continue
       }
 
@@ -185,15 +212,19 @@ const startMigration = async () => {
       l.info(
         `Found events: erc20: ${erc20Transfers.length}, erc721: ${erc721Transfers.length}, erc1155: ${erc1155Transfers.length}`
       )
+      console.time('db_write')
+      await writeContractEventsToDbBatch(erc20Transfers)
+      await writeContractEventsToDbBatch(erc721Transfers)
+      await writeContractEventsToDbBatch(erc1155Transfers)
+      console.timeEnd('db_write')
 
-      await writeContractEventsToDb(erc20Transfers)
-
-      await sleep(500)
+      await sleep(SUCCESS_SLEEP_TIMEOUT)
 
       increaseBlocksNumber()
     } catch (e) {
       l.error(`Migration error: ${e.message}, sleep`)
-      await sleep(10000)
+      process.exit(1)
+      // await sleep(FAIL_SLEEP_TIMEOUT)
     }
   }
   l.info(`Migration completed on block ${blocksFrom}, exit`)
