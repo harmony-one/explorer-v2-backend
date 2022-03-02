@@ -12,6 +12,7 @@ const l = logger(module, 'erc1155')
 
 const transferEventName = ContractEventType.TransferSingle
 const transferEvent = getEntryByName(transferEventName)!.signature
+const approvalForAllSignature = getEntryByName(ContractEventType.ApprovalForAll)!.signature
 
 // todo track transfer batch
 const transferBatchEvent = getEntryByName('TransferBatch')!.signature
@@ -34,50 +35,76 @@ mark ownership
 
 export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: IParams) => {
   const filteredLogs = logs.filter(({topics}) => topics.includes(transferEvent))
-  if (!filteredLogs.length) {
-    return
+  if (filteredLogs.length > 0) {
+    const tokenAddress = filteredLogs[0].address
+    const addressesToUpdate = new Set<{address: string; tokenId: string}>() // unique addresses of senders and recipients
+
+    const contractEvents = filteredLogs
+      .map((log) => {
+        const [topic0, ...topics] = log.topics
+        const {from, to, value, id: tokenId} = decodeLog(transferEventName, log.data, topics)
+        if (![from, to].includes(zeroAddress)) {
+          addressesToUpdate.add({address: from, tokenId})
+          addressesToUpdate.add({address: to, tokenId})
+          return {
+            address: normalizeAddress(tokenAddress),
+            from: normalizeAddress(from),
+            to: normalizeAddress(to),
+            value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
+            blockNumber: log.blockNumber,
+            transactionIndex: log.transactionIndex,
+            transactionHash: log.transactionHash,
+            transactionType: 'erc1155',
+            eventType: transferEventName,
+          } as ContractEvent
+        }
+      })
+      .filter((e) => e) as ContractEvent[]
+
+    // add related txs we mark them 721 table as all nft
+    // todo add to token address
+    const addEventsPromises = contractEvents.map((e) => store.contract.addContractEvent(e))
+
+    const updateAssetPromises = [...addressesToUpdate.values()].map((item) =>
+      store.erc1155.setNeedUpdateAsset(tokenAddress, item.tokenId)
+    )
+
+    const updateAssetBalancesPromises = [...addressesToUpdate.values()].map((item) =>
+      store.erc1155.setNeedUpdateBalance(item.address, tokenAddress, item.tokenId)
+    )
+
+    await Promise.all([
+      ...updateAssetPromises,
+      ...addEventsPromises,
+      ...updateAssetBalancesPromises,
+    ])
+
+    l.info(
+      `${updateAssetPromises.length} tokens marked need update balances for "${token.name}" ${token.address}`
+    )
   }
 
-  const tokenAddress = filteredLogs[0].address
-  const addressesToUpdate = new Set<{address: string; tokenId: string}>() // unique addresses of senders and recipients
-
-  const contractEvents = filteredLogs
-    .map((log) => {
+  const approvalForAllLogs = logs.filter(({topics}) => topics.includes(approvalForAllSignature))
+  if (approvalForAllLogs.length > 0) {
+    const events = approvalForAllLogs.map((log) => {
       const [topic0, ...topics] = log.topics
-      const {from, to, value, id: tokenId} = decodeLog(transferEventName, log.data, topics)
-      if (![from, to].includes(zeroAddress)) {
-        addressesToUpdate.add({address: from, tokenId})
-        addressesToUpdate.add({address: to, tokenId})
-        return {
-          address: normalizeAddress(tokenAddress),
-          from: normalizeAddress(from),
-          to: normalizeAddress(to),
-          value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
-          blockNumber: log.blockNumber,
-          transactionIndex: log.transactionIndex,
-          transactionHash: log.transactionHash,
-          transactionType: 'erc1155',
-          eventType: transferEventName,
-        } as ContractEvent
-      }
+      const {_owner: owner, _operator: operator, _approved: approved} = decodeLog(
+        ContractEventType.ApprovalForAll,
+        log.data,
+        topics
+      )
+      return {
+        address: normalizeAddress(operator),
+        from: normalizeAddress(owner),
+        to: '',
+        value: (+!!approved).toString(),
+        blockNumber: log.blockNumber,
+        transactionIndex: log.transactionIndex,
+        transactionHash: log.transactionHash,
+        transactionType: 'erc1155',
+        eventType: ContractEventType.ApprovalForAll,
+      } as ContractEvent
     })
-    .filter((e) => e) as ContractEvent[]
-
-  // add related txs we mark them 721 table as all nft
-  // todo add to token address
-  const addEventsPromises = contractEvents.map((e) => store.contract.addContractEvent(e))
-
-  const updateAssetPromises = [...addressesToUpdate.values()].map((item) =>
-    store.erc1155.setNeedUpdateAsset(tokenAddress, item.tokenId)
-  )
-
-  const updateAssetBalancesPromises = [...addressesToUpdate.values()].map((item) =>
-    store.erc1155.setNeedUpdateBalance(item.address, tokenAddress, item.tokenId)
-  )
-
-  await Promise.all([...updateAssetPromises, ...addEventsPromises, ...updateAssetBalancesPromises])
-
-  l.info(
-    `${updateAssetPromises.length} tokens marked need update balances for "${token.name}" ${token.address}`
-  )
+    await Promise.all(events.map((e) => store.contract.addContractEvent(e)))
+  }
 }

@@ -374,6 +374,8 @@ export enum ContractEventType {
   Transfer = 'Transfer',
   TransferBatch = 'TransferBatch',
   TransferSingle = 'TransferSingle',
+  Approval = 'Approval',
+  ApprovalForAll = 'ApprovalForAll',
 }
 
 export type ContractType = 'erc20' | 'erc721' | 'erc1155'

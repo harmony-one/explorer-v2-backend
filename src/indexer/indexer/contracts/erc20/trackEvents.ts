@@ -10,7 +10,8 @@ import {logTime} from 'src/utils/logTime'
 
 const l = logger(module, 'erc20')
 
-const transferEvent = getEntryByName(ContractEventType.Transfer)!.signature
+const transferSignature = getEntryByName(ContractEventType.Transfer)!.signature
+const approveSignature = getEntryByName(ContractEventType.Approval)!.signature
 
 type IParams = {
   token: IERC20
@@ -23,43 +24,66 @@ type IParams = {
 // todo filter out other topics
 
 export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: IParams) => {
-  const filteredLogs = logs.filter(({topics}) => topics.includes(transferEvent))
-  if (!filteredLogs.length) {
-    return
+  const transferLogs = logs.filter(({topics}) => topics.includes(transferSignature))
+
+  if (transferLogs.length > 0) {
+    const addressesToUpdate = new Set<string>() // unique addresses of senders and recipients
+    const tokenAddress = transferLogs[0].address
+    const transferEvents = transferLogs
+      .map((log) => {
+        const [topic0, ...topics] = log.topics
+        const {from, to, value} = decodeLog(ContractEventType.Transfer, log.data, topics)
+        if (![from, to].includes(zeroAddress)) {
+          addressesToUpdate.add(from)
+          addressesToUpdate.add(to)
+          return {
+            address: normalizeAddress(tokenAddress),
+            from: normalizeAddress(from),
+            to: normalizeAddress(to),
+            value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
+            blockNumber: log.blockNumber,
+            transactionIndex: log.transactionIndex,
+            transactionHash: log.transactionHash,
+            transactionType: 'erc20',
+            eventType: ContractEventType.Transfer,
+          } as ContractEvent
+        }
+      })
+      .filter((e) => e) as ContractEvent[]
+
+    const updateBalancesPromises = [...addressesToUpdate.values()].map((address) =>
+      store.erc20.setNeedUpdateBalance(address, tokenAddress)
+    )
+    const addEventsPromises = transferEvents.map((e) => store.contract.addContractEvent(e))
+
+    await Promise.all(updateBalancesPromises.concat(addEventsPromises))
+
+    l.info(
+      `${updateBalancesPromises.length} addresses marked need update balances for "${token.name}" ${token.address}`
+    )
   }
-  const tokenAddress = filteredLogs[0].address
-  const addressesToUpdate = new Set<string>() // unique addresses of senders and recipients
 
-  const contractEvents = filteredLogs
-    .map((log) => {
+  const approveLogs = logs.filter(({topics}) => topics.includes(approveSignature))
+  if (approveLogs.length > 0) {
+    const approveEvents = approveLogs.map((log) => {
       const [topic0, ...topics] = log.topics
-      const {from, to, value} = decodeLog(ContractEventType.Transfer, log.data, topics)
-      if (![from, to].includes(zeroAddress)) {
-        addressesToUpdate.add(from)
-        addressesToUpdate.add(to)
-        return {
-          address: normalizeAddress(tokenAddress),
-          from: normalizeAddress(from),
-          to: normalizeAddress(to),
-          value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
-          blockNumber: log.blockNumber,
-          transactionIndex: log.transactionIndex,
-          transactionHash: log.transactionHash,
-          transactionType: 'erc20',
-          eventType: ContractEventType.Transfer,
-        } as ContractEvent
-      }
+      const {_owner: owner, _spender: spender, _value: value} = decodeLog(
+        ContractEventType.Approval,
+        log.data,
+        topics
+      )
+      return {
+        address: normalizeAddress(spender),
+        from: normalizeAddress(owner),
+        to: '',
+        value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
+        blockNumber: log.blockNumber,
+        transactionIndex: log.transactionIndex,
+        transactionHash: log.transactionHash,
+        transactionType: 'erc20',
+        eventType: ContractEventType.Approval,
+      } as ContractEvent
     })
-    .filter((e) => e) as ContractEvent[]
-
-  const addEventsPromises = contractEvents.map((e) => store.contract.addContractEvent(e))
-  const updateBalancesPromises = [...addressesToUpdate.values()].map((address) =>
-    store.erc20.setNeedUpdateBalance(address, tokenAddress)
-  )
-
-  await Promise.all(updateBalancesPromises.concat(addEventsPromises))
-
-  l.info(
-    `${updateBalancesPromises.length} addresses marked need update balances for "${token.name}" ${token.address}`
-  )
+    await Promise.all(approveEvents.map((e) => store.contract.addContractEvent(e)))
+  }
 }

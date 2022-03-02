@@ -47,7 +47,7 @@ create table if not exists logs
 
 create index if not exists idx_logs_address on logs using hash (address);
 create index if not exists idx_logs_transaction_hash on logs using hash (transaction_hash);
-create index if not exists idx_logs_block_hash on logs using hash (block_hash);
+-- create index if not exists idx_logs_block_hash on logs using hash (block_hash);
 create index if not exists idx_logs_block_number on logs (block_number desc);
 create index if not exists idx_logs_block_number_asc on logs (block_number);
 create index if not exists idx_logs_block_number_address on logs (block_number desc, address);
@@ -78,7 +78,7 @@ create table if not exists transactions
 );
 create index if not exists idx_transactions_hash on transactions using hash (hash);
 create index if not exists idx_transactions_hash_harmony on transactions using hash (hash_harmony);
-create index if not exists idx_transactions_block_hash on transactions using hash (block_hash);
+-- create index if not exists idx_transactions_block_hash on transactions using hash (block_hash);
 create index if not exists idx_transactions_block_number on transactions (block_number desc);
 create index if not exists idx_transactions_timestamp on transactions (timestamp);
 create index if not exists idx_transactions_from_block_number on transactions ("from", block_number desc);
@@ -228,7 +228,7 @@ create table if not exists internal_transactions
 );
 
 create index if not exists idx_internal_transactions_transaction_hash on internal_transactions using hash (transaction_hash);
-create index if not exists idx_internal_transactions_block_number on internal_transactions (block_number desc);
+-- create index if not exists idx_internal_transactions_block_number on internal_transactions (block_number desc);
 create index if not exists idx_internal_transactions_from_block_number on internal_transactions ("from", block_number desc);
 create index if not exists idx_internal_transactions_to_block_number on internal_transactions ("to", block_number desc);
 
@@ -391,7 +391,9 @@ $$
         create type contract_event_type as enum (
             'Transfer',
             'TransferBatch',
-            'TransferSingle'
+            'TransferSingle',
+            'Approval',
+            'ApprovalForAll'
             );
     exception
         when duplicate_object then null;
@@ -408,6 +410,9 @@ create table if not exists contract_events
     address             char(42)            not null,
     "from"              char(42)            not null,
     "to"                char(42)            not null,
-    value               numeric,
-    unique (block_number, address, transaction_hash, transaction_type)
+    value               numeric
 );
+
+create index if not exists idx_contract_events_from_block_number on contract_events ("from", block_number desc);
+create index if not exists idx_contract_events_to_block_number on contract_events ("to", block_number desc);
+create index if not exists idx_contract_events_transaction_hash on contract_events using hash (transaction_hash);

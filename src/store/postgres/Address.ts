@@ -70,9 +70,9 @@ export class PostgresStorageAddress implements IStorageAddress {
         `
         select it.*, t.timestamp, t.input
         from (
-            (select * from internal_transactions t where t.from = $1 order by block_number desc)
+            (select * from internal_transactions t where t.block_number >= 23000000 and t.from = $1 order by block_number desc)
             union all
-            (select * from internal_transactions t where t.to = $1 order by block_number desc)
+            (select * from internal_transactions t where t.block_number >= 23000000 and t.to = $1 order by block_number desc)
         ) it
         join transactions t on t.hash = it.transaction_hash 
         order by block_number desc, index desc
