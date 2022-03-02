@@ -82,7 +82,8 @@ export async function getRelatedTransactionsByType(
 export async function getRelatedTransactionsCountByType(
   shardID: ShardID,
   address: Address,
-  type: AddressTransactionType
+  type: AddressTransactionType,
+  filter: Filter
 ) {
   validator({
     shardID: isShard(shardID),
@@ -96,9 +97,17 @@ export async function getRelatedTransactionsCountByType(
     ]),
   })
 
+  filter = {
+    offset: filter ? filter.offset : 0,
+    limit: filter ? filter.limit : 10,
+    orderBy: 'block_number',
+    orderDirection: 'desc',
+    filters: filter && filter.filters ? filter.filters : [],
+  }
+
   return await withCache(
     ['getRelatedTransactionsCountByType', arguments],
-    () => stores[shardID].address.getRelatedTransactionsCountByType(address, type),
+    () => stores[shardID].address.getRelatedTransactionsCountByType(address, type, filter),
     30 * 1000
   )
 }

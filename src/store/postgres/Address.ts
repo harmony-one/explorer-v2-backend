@@ -39,6 +39,7 @@ export class PostgresStorageAddress implements IStorageAddress {
     filter: Filter
   ): Promise<Address2Transaction[]> => {
     const {offset = 0, limit = 10} = filter
+    const subQueryLimit = 10000000
 
     let txs = []
 
@@ -66,20 +67,21 @@ export class PostgresStorageAddress implements IStorageAddress {
         })
       )
     } else if (type === 'internal_transaction') {
+      const filterQuery = buildSQLQuery({filters: filter.filters})
       txs = await this.query(
         `
-        select it.*, t.timestamp, t.input
-        from (
-            (select * from internal_transactions t where t.block_number >= 23000000 and t.from = $1 order by block_number desc)
-            union all
-            (select * from internal_transactions t where t.block_number >= 23000000 and t.to = $1 order by block_number desc)
+      select t.* from (
+        select * from ((select * from internal_transactions it ${filterQuery} and it.from = $1 limit $4)
+        union all 
+        (select * from internal_transactions it ${filterQuery} and it.to = $1 limit $4)
         ) it
-        join transactions t on t.hash = it.transaction_hash 
-        order by block_number desc, index desc
-        offset $2
-        limit $3
-      `,
-        [address, offset, limit]
+        ${filterQuery}
+      ) it
+      left join transactions t on t.hash  = it.transaction_hash
+      offset $2
+      limit $3
+    `,
+        [address, offset, limit, subQueryLimit]
       )
     } else {
       let txsTable = 'transactions'
@@ -91,13 +93,13 @@ export class PostgresStorageAddress implements IStorageAddress {
         `
         select t.*
         from (
-            (select * from ${txsTable} t where t.from = $1 order by block_number desc)
+            (select * from ${txsTable} t where t.from = $1 order by block_number desc limit $2)
             union all
-            (select * from ${txsTable} t where t.to = $1 order by block_number desc)
+            (select * from ${txsTable} t where t.to = $1 order by block_number desc limit $2)
         ) t
         ${filterQuery}
       `,
-        [address]
+        [address, subQueryLimit]
       )
     }
 
@@ -108,8 +110,11 @@ export class PostgresStorageAddress implements IStorageAddress {
 
   getRelatedTransactionsCountByType = async (
     address: Address,
-    type: AddressTransactionType
+    type: AddressTransactionType,
+    filter: Filter
   ): Promise<number> => {
+    const subQueryLimit = 10000000
+
     if (type === 'erc20' || type === 'erc721') {
       const [{count}] = await this.query(
         `select count(t.*) from contract_events ce 
@@ -119,23 +124,37 @@ export class PostgresStorageAddress implements IStorageAddress {
         [address, type]
       )
       return count
+    } else if (type === 'internal_transaction') {
+      const filterQuery = buildSQLQuery({filters: filter.filters})
+      const [{count}] = await this.query(
+        `
+      select count(t.*) from (
+        select * from ((select * from internal_transactions it ${filterQuery} and it.from = $1)
+        union all 
+        (select * from internal_transactions it ${filterQuery} and it.to = $1)) it
+        ${filterQuery}
+        limit $2
+      ) it
+      left join transactions t on t.hash  = it.transaction_hash 
+    `,
+        [address, subQueryLimit]
+      )
+      return count
     } else {
       let tableName = 'transactions'
       if (type === 'staking_transaction') {
         tableName = 'staking_transactions'
-      } else if (type === 'internal_transaction') {
-        tableName = 'internal_transactions'
       }
       const [{count}] = await this.query(
         `
       select count(*)
         from (
-            (select * from ${tableName} t where t.from = $1)
+            (select * from ${tableName} t where t.from = $1 limit $2)
             union all
-            (select * from ${tableName} t where t.to = $1)
+            (select * from ${tableName} t where t.to = $1 limit $2)
         ) t
     `,
-        [address]
+        [address, subQueryLimit]
       )
       return count
     }
