@@ -70,10 +70,11 @@ export class PostgresStorageAddress implements IStorageAddress {
       const filterQuery = buildSQLQuery({filters: filter.filters})
       txs = await this.query(
         `
-      select t.* from (
-        select * from ((select * from internal_transactions it ${filterQuery} and it.from = $1 limit $4)
+      select it.*, t.input, t.timestamp from (
+        select * from (
+        (select * from internal_transactions it ${filterQuery} and it.from = $1 order by block_number desc limit $4)
         union all 
-        (select * from internal_transactions it ${filterQuery} and it.to = $1 limit $4)
+        (select * from internal_transactions it ${filterQuery} and it.to = $1 order by block_number desc limit $4)
         ) it
         ${filterQuery}
       ) it
@@ -113,7 +114,7 @@ export class PostgresStorageAddress implements IStorageAddress {
     type: AddressTransactionType,
     filter: Filter
   ): Promise<number> => {
-    const subQueryLimit = 10000000
+    const subQueryLimit = 100000
 
     if (type === 'erc20' || type === 'erc721') {
       const [{count}] = await this.query(
@@ -127,7 +128,7 @@ export class PostgresStorageAddress implements IStorageAddress {
     } else if (type === 'internal_transaction') {
       const filterQuery = buildSQLQuery({filters: filter.filters})
       const [{count}] = await this.query(
-        `
+        ` 
       select count(t.*) from (
         select * from ((select * from internal_transactions it ${filterQuery} and it.from = $1)
         union all 
@@ -135,7 +136,7 @@ export class PostgresStorageAddress implements IStorageAddress {
         ${filterQuery}
         limit $2
       ) it
-      left join transactions t on t.hash  = it.transaction_hash 
+      left join transactions t on t.hash  = it.transaction_hash
     `,
         [address, subQueryLimit]
       )
