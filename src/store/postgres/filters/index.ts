@@ -17,7 +17,10 @@ const propertyToString = (property: string) => {
 export const buildSQLQuery = (query: Filter) => {
   const safeSQL = (value: any) => {
     // todo safe trim value
-    return (value + '').split(' ').join('').replace(/[^a-zA-Z0-9 _-]/g, '')
+    return (value + '')
+      .split(' ')
+      .join('')
+      .replace(/[^a-zA-Z0-9 \\'_-]/g, '')
   }
 
   const whereQuery = query.filters
@@ -32,7 +35,7 @@ export const buildSQLQuery = (query: Filter) => {
 
   const where = whereQuery ? `where ${whereQuery}` : ''
   const offset = query.offset ? `offset ${query.offset || 0}` : ''
-  const limit = `limit ${query.limit || 10}`
+  const limit = query.limit ? `limit ${query.limit || 10}` : ''
 
   let order = ''
   if (query.orderBy && query.orderDirection) {

@@ -369,3 +369,25 @@ export type IERC1155Asset = {
   needUpdate?: boolean
   lastUpdateBlockNumber?: number
 }
+
+export enum ContractEventType {
+  Transfer = 'Transfer',
+  TransferBatch = 'TransferBatch',
+  TransferSingle = 'TransferSingle',
+  Approval = 'Approval',
+  ApprovalForAll = 'ApprovalForAll',
+}
+
+export type ContractType = 'erc20' | 'erc721' | 'erc1155'
+
+export type ContractEvent = {
+  address: string
+  from: string
+  to: string
+  value: string
+  blockNumber: string
+  transactionIndex: string
+  transactionHash: string
+  transactionType: ContractType
+  eventType: ContractEventType
+}

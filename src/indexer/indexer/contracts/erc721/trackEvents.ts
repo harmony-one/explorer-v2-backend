@@ -1,14 +1,4 @@
-import {
-  Log,
-  Address,
-  IERC721,
-  Address2Transaction,
-  BlockNumber,
-  TransactionHash,
-  TransactionHarmonyHash,
-  AddressTransactionType,
-  IERC721TokenID,
-} from 'src/types'
+import {Log, IERC721, ContractEventType, ContractEvent} from 'src/types'
 import {PostgresStorage} from 'src/store/postgres'
 import {ABI} from './ABI'
 import {logger} from 'src/logger'
@@ -20,7 +10,8 @@ import {logTime} from 'src/utils/logTime'
 
 const l = logger(module, 'erc721')
 
-const transferEvent = getEntryByName('Transfer')!.signature
+const transferSignature = getEntryByName(ContractEventType.Transfer)!.signature
+const approvalForAllSignature = getEntryByName(ContractEventType.ApprovalForAll)!.signature
 
 type IParams = {
   token: IERC721
@@ -32,68 +23,68 @@ type IParams = {
 //
 // todo filter out other topics
 
-type setEntry = {
-  address: Address
-  blockNumber: BlockNumber
-  transactionHash: TransactionHash
-  tokenId: IERC721TokenID
-}
-
 export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: IParams) => {
-  const filteredLogs = logs.filter(({topics}) => topics.includes(transferEvent))
-  if (!filteredLogs.length) {
-    return
-  }
-  const tokenAddress = filteredLogs[0].address
+  const filteredLogs = logs.filter(({topics}) => topics.includes(transferSignature))
+  if (filteredLogs.length > 0) {
+    const tokenAddress = filteredLogs[0].address
+    const addressesToUpdate = new Set<{address: string; tokenId: string}>() // unique addresses of senders and recipients
 
-  const addressesForUpdate = new Map<Address, setEntry>()
+    const contractEvents = filteredLogs
+      .map((log) => {
+        const [topic0, ...topics] = log.topics
+        const {from, to, value, tokenId} = decodeLog(ContractEventType.Transfer, log.data, topics)
+        if (![from, to].includes(zeroAddress)) {
+          addressesToUpdate.add({address: from, tokenId})
+          addressesToUpdate.add({address: to, tokenId})
+          return {
+            address: normalizeAddress(tokenAddress),
+            from: normalizeAddress(from),
+            to: normalizeAddress(to),
+            value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
+            blockNumber: log.blockNumber,
+            transactionIndex: log.transactionIndex,
+            transactionHash: log.transactionHash,
+            transactionType: 'erc721',
+            eventType: ContractEventType.Transfer,
+          } as ContractEvent
+        }
+      })
+      .filter((e) => e) as ContractEvent[]
 
-  for (const log of filteredLogs) {
-    const [topic0, ...topics] = log.topics
-    const {from, to, tokenId} = decodeLog('Transfer', log.data, topics)
-
-    addressesForUpdate.set(from, {
-      address: from,
-      blockNumber: +log.blockNumber,
-      transactionHash: log.transactionHash,
-      tokenId,
-    })
-    addressesForUpdate.set(to, {
-      address: to,
-      blockNumber: +log.blockNumber,
-      transactionHash: log.transactionHash,
-      tokenId,
-    })
-  }
-
-  // todo burn token?
-  const arrFromSet = [...addressesForUpdate.values()].filter(
-    (o) => ![zeroAddress].includes(o.address)
-  )
-  arrFromSet.forEach((o) => {
-    o.address = normalizeAddress(o.address)!
-  })
-
-  // add related txs
-  const setAddress2Transactions = arrFromSet
-    .map(
-      (o) =>
-        ({
-          blockNumber: o.blockNumber,
-          transactionHash: o.transactionHash,
-          address: o.address,
-          transactionType: 'erc721',
-        } as Address2Transaction)
+    // todo burn token?
+    const addEventsPromises = contractEvents.map((e) => store.contract.addContractEvent(e))
+    const updateAssetPromises = [...addressesToUpdate.values()].map((item) =>
+      store.erc721.setNeedUpdateAsset(item.address, tokenAddress, item.tokenId)
     )
-    .map((o) => store.address.addAddress2Transaction(o))
 
-  const setUpdateNeeded = arrFromSet.map((a) =>
-    store.erc721.setNeedUpdateAsset(a.address!, tokenAddress, a.tokenId!)
-  )
+    await Promise.all(updateAssetPromises.concat(addEventsPromises))
 
-  await Promise.all(setUpdateNeeded.concat(setAddress2Transactions))
+    l.info(
+      `${updateAssetPromises.length} tokens marked need update balances for "${token.name}" ${token.address}`
+    )
+  }
 
-  l.info(
-    `${setUpdateNeeded.length} tokens marked need update balances for "${token.name}" ${token.address}`
-  )
+  const approvalForAllLogs = logs.filter(({topics}) => topics.includes(approvalForAllSignature))
+  if (approvalForAllLogs.length > 0) {
+    const events = approvalForAllLogs.map((log) => {
+      const [topic0, ...topics] = log.topics
+      const {owner, operator, approved} = decodeLog(
+        ContractEventType.ApprovalForAll,
+        log.data,
+        topics
+      )
+      return {
+        address: normalizeAddress(operator),
+        from: normalizeAddress(owner),
+        to: '',
+        value: (+!!approved).toString(),
+        blockNumber: log.blockNumber,
+        transactionIndex: log.transactionIndex,
+        transactionHash: log.transactionHash,
+        transactionType: 'erc721',
+        eventType: ContractEventType.ApprovalForAll,
+      } as ContractEvent
+    })
+    await Promise.all(events.map((e) => store.contract.addContractEvent(e)))
+  }
 }

@@ -39,54 +39,125 @@ export class PostgresStorageAddress implements IStorageAddress {
     filter: Filter
   ): Promise<Address2Transaction[]> => {
     const {offset = 0, limit = 10} = filter
-    // Only latest 100 entries currently supported
-    if (offset + limit > 100) {
-      return []
+    const subQueryLimit = 10000000
+
+    let txs = []
+
+    if (type === 'erc20' || type === 'erc721') {
+      txs = await this.query(
+        `
+            select t.*
+            from (
+                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by block_number desc)
+                 union all
+                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by block_number desc)
+            ) ce
+            join transactions t on t.hash = ce.transaction_hash
+            order by ce.block_number desc
+            offset ${offset}
+            limit ${limit}`,
+        [address, type]
+      )
+
+      // for erc20 and erc721 we add logs to payload
+      txs = await Promise.all(
+        txs.map(fromSnakeToCamelResponse).map(async (tx: any) => {
+          tx.logs = await this.query('select * from logs where transaction_hash=$1', [tx.hash])
+          return tx
+        })
+      )
+    } else if (type === 'internal_transaction') {
+      const filterQuery = buildSQLQuery({filters: filter.filters})
+      txs = await this.query(
+        `
+      select it.*, t.input, t.timestamp from (
+        select * from (
+        (select * from internal_transactions it ${filterQuery} and it.from = $1 order by block_number desc limit $4)
+        union all 
+        (select * from internal_transactions it ${filterQuery} and it.to = $1 order by block_number desc limit $4)
+        ) it
+        ${filterQuery}
+      ) it
+      left join transactions t on t.hash  = it.transaction_hash
+      offset $2
+      limit $3
+    `,
+        [address, offset, limit, subQueryLimit]
+      )
+    } else {
+      let txsTable = 'transactions'
+      if (type === 'staking_transaction') {
+        txsTable = 'staking_transactions'
+      }
+      const filterQuery = buildSQLQuery(filter)
+      txs = await this.query(
+        `
+        select t.*
+        from (
+            (select * from ${txsTable} t where t.from = $1 order by block_number desc limit $2)
+            union all
+            (select * from ${txsTable} t where t.to = $1 order by block_number desc limit $2)
+        ) t
+        ${filterQuery}
+      `,
+        [address, subQueryLimit]
+      )
     }
 
-    const res = await this.query(
-      `select transaction_hashes from address2transaction_fifo where address=$1 and transaction_type=$2`,
-      [address, type]
-    )
+    return txs
+      .map(fromSnakeToCamelResponse)
+      .sort((a: InternalTransaction, b: InternalTransaction) => b.blockNumber - a.blockNumber)
+  }
 
-    if (!res || !res[0]) {
-      return []
+  getRelatedTransactionsCountByType = async (
+    address: Address,
+    type: AddressTransactionType,
+    filter: Filter
+  ): Promise<number> => {
+    const subQueryLimit = 100000
+
+    if (type === 'erc20' || type === 'erc721') {
+      const [{count}] = await this.query(
+        `select count(t.*) from contract_events ce 
+            join transactions t on t.hash = ce.transaction_hash 
+            where ce.transaction_type = $2
+            and (ce."from" = $1 or ce."to" = $1)`,
+        [address, type]
+      )
+      return count
+    } else if (type === 'internal_transaction') {
+      const filterQuery = buildSQLQuery({filters: filter.filters})
+      const [{count}] = await this.query(
+        ` 
+      select count(t.*) from (
+        select * from ((select * from internal_transactions it ${filterQuery} and it.from = $1)
+        union all 
+        (select * from internal_transactions it ${filterQuery} and it.to = $1)) it
+        ${filterQuery}
+        limit $2
+      ) it
+      left join transactions t on t.hash  = it.transaction_hash
+    `,
+        [address, subQueryLimit]
+      )
+      return count
+    } else {
+      let tableName = 'transactions'
+      if (type === 'staking_transaction') {
+        tableName = 'staking_transactions'
+      }
+      const [{count}] = await this.query(
+        `
+      select count(*)
+        from (
+            (select * from ${tableName} t where t.from = $1 limit $2)
+            union all
+            (select * from ${tableName} t where t.to = $1 limit $2)
+        ) t
+    `,
+        [address, subQueryLimit]
+      )
+      return count
     }
-
-    const allHashes = res[0].transaction_hashes
-
-    if (!allHashes || !allHashes.length) {
-      return []
-    }
-
-    const hashes = allHashes.slice(offset, offset + limit)
-
-    if (type === 'staking_transaction') {
-      const txs = await this.query(`select * from staking_transactions where hash = any ($1)`, [
-        hashes,
-      ])
-
-      return txs
-        .map(fromSnakeToCamelResponse)
-        .sort((a: InternalTransaction, b: InternalTransaction) => b.blockNumber - a.blockNumber)
-    }
-
-    const txs = await this.query(`select * from transactions where hash = any ($1)`, [hashes])
-
-    if (type === 'transaction' || type === 'internal_transaction') {
-      return txs
-        .map(fromSnakeToCamelResponse)
-        .sort((a: InternalTransaction, b: InternalTransaction) => b.blockNumber - a.blockNumber)
-    }
-
-    // for erc20 and erc721 we add logs to payload
-    const txsWithLogs = (await Promise.all(
-      txs.map(fromSnakeToCamelResponse).map(async (tx: any) => {
-        tx.logs = await this.query('select * from logs where transaction_hash=$1', [tx.hash])
-        return tx
-      })
-    )) as Address2Transaction[]
-
-    return txsWithLogs.sort((a, b) => b.blockNumber - a.blockNumber)
   }
 }
