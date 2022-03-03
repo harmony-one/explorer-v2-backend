@@ -114,15 +114,23 @@ export class PostgresStorageAddress implements IStorageAddress {
     type: AddressTransactionType,
     filter: Filter
   ): Promise<number> => {
-    const subQueryLimit = 100000
+    const subQueryLimit = 100000 // Count estimate max value
 
     if (type === 'erc20' || type === 'erc721') {
       const [{count}] = await this.query(
-        `select count(t.*) from contract_events ce 
-            join transactions t on t.hash = ce.transaction_hash 
-            where ce.transaction_type = $2
-            and (ce."from" = $1 or ce."to" = $1)`,
-        [address, type]
+        `
+          select count(*) from
+          (
+          select * from (
+               (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by ce.block_number desc)
+               union all
+               (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by ce.block_number desc)
+          ) ce
+          limit $3
+          ) ce2
+          join transactions t on t.hash = ce2.transaction_hash
+            `,
+        [address, type, subQueryLimit]
       )
       return count
     } else if (type === 'internal_transaction') {
