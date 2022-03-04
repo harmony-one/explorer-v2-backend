@@ -44,20 +44,42 @@ export class PostgresStorageAddress implements IStorageAddress {
     let txs = []
 
     if (type === 'erc20' || type === 'erc721') {
-      txs = await this.query(
-        `
+      if (type === 'erc20') {
+        txs = await this.query(
+          `
             select t.*
             from (
-                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by block_number desc)
+                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by block_number desc limit $5)
                  union all
-                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by block_number desc)
+                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by block_number desc limit $5)
             ) ce
             join transactions t on t.hash = ce.transaction_hash
             order by ce.block_number desc
-            offset ${offset}
-            limit ${limit}`,
-        [address, type]
-      )
+            offset $3
+            limit $4`,
+          [address, type, offset, limit, subQueryLimit]
+        )
+      } else {
+        // Include both erc721 & erc1155
+        txs = await this.query(
+          `
+            select t.*
+            from (
+                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by block_number desc limit $6)
+                 union all
+                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by block_number desc limit $6)
+                 union all
+                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $3 order by block_number desc limit $6)
+                 union all
+                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $3 order by block_number desc limit $6)
+            ) ce
+            join transactions t on t.hash = ce.transaction_hash
+            order by ce.block_number desc
+            offset $4
+            limit $5`,
+          [address, type, 'erc1155', offset, limit, subQueryLimit]
+        )
+      }
 
       // for erc20 and erc721 we add logs to payload
       txs = await Promise.all(
@@ -114,15 +136,44 @@ export class PostgresStorageAddress implements IStorageAddress {
     type: AddressTransactionType,
     filter: Filter
   ): Promise<number> => {
-    const subQueryLimit = 100000
+    const subQueryLimit = 100000 // Count estimate max value
 
-    if (type === 'erc20' || type === 'erc721') {
+    if (type === 'erc20') {
       const [{count}] = await this.query(
-        `select count(t.*) from contract_events ce 
-            join transactions t on t.hash = ce.transaction_hash 
-            where ce.transaction_type = $2
-            and (ce."from" = $1 or ce."to" = $1)`,
-        [address, type]
+        `
+          select count(*) from
+          (
+          select * from (
+               (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by ce.block_number desc)
+               union all
+               (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by ce.block_number desc)
+          ) ce
+          limit $3
+          ) ce2
+          join transactions t on t.hash = ce2.transaction_hash
+            `,
+        [address, type, subQueryLimit]
+      )
+      return count
+    } else if (type === 'erc721') {
+      const [{count}] = await this.query(
+        `
+          select count(*) from
+          (
+            select * from (
+                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by ce.block_number desc)
+                 union all
+                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by ce.block_number desc)
+                 union all
+                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $3 order by ce.block_number desc)
+                 union all
+                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $3 order by ce.block_number desc)
+            ) ce
+            limit $4
+          ) ce2
+          join transactions t on t.hash = ce2.transaction_hash
+            `,
+        [address, type, 'erc1155', subQueryLimit]
       )
       return count
     } else if (type === 'internal_transaction') {
@@ -130,9 +181,11 @@ export class PostgresStorageAddress implements IStorageAddress {
       const [{count}] = await this.query(
         ` 
       select count(t.*) from (
-        select * from ((select * from internal_transactions it ${filterQuery} and it.from = $1)
-        union all 
-        (select * from internal_transactions it ${filterQuery} and it.to = $1)) it
+        select * from (
+          (select * from internal_transactions it ${filterQuery} and it.from = $1)
+          union all 
+          (select * from internal_transactions it ${filterQuery} and it.to = $1)
+        ) it
         ${filterQuery}
         limit $2
       ) it
