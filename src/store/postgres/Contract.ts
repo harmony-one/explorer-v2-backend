@@ -22,7 +22,7 @@ export class PostgresStorageContract implements IStorageContract {
   addContract = async (contract: Contract) => {
     const {query, params} = generateQuery(contract)
     return await this.query(
-      `insert into contracts ${query} on conflict (address) do nothing;`,
+      `insert into contracts ${query} on conflict (transaction_index, transaction_hash, "from", "to", value) do nothing;`,
       params
     )
   }
