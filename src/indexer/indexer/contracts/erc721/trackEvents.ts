@@ -36,10 +36,9 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
         if (![from, to].includes(zeroAddress)) {
           const fromNormalized = normalizeAddress(from) as string
           const toNormalized = normalizeAddress(to) as string
-          const tokenIdNormalized = normalizeAddress(tokenId) as string
 
-          addressesToUpdate.add({address: fromNormalized, tokenId: tokenIdNormalized})
-          addressesToUpdate.add({address: toNormalized, tokenId: tokenIdNormalized})
+          addressesToUpdate.add({address: fromNormalized, tokenId})
+          addressesToUpdate.add({address: toNormalized, tokenId})
 
           return {
             address: normalizeAddress(tokenAddress),
