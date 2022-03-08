@@ -411,7 +411,7 @@ create table if not exists contract_events
     "from"              char(42)            not null,
     "to"                char(42)            not null,
     value               numeric,
-    unique (transaction_index, transaction_hash, "from", "to", value)
+    unique (transaction_index, transaction_hash, "from", "to")
 );
 
 create index if not exists idx_contract_events_from_block_number on contract_events ("from", block_number desc);
