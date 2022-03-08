@@ -34,12 +34,16 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
         const [topic0, ...topics] = log.topics
         const {from, to, value} = decodeLog(ContractEventType.Transfer, log.data, topics)
         if (![from, to].includes(zeroAddress)) {
-          addressesToUpdate.add(from)
-          addressesToUpdate.add(to)
+          const fromNormalized = normalizeAddress(from) as string
+          const toNormalized = normalizeAddress(to) as string
+
+          addressesToUpdate.add(fromNormalized)
+          addressesToUpdate.add(toNormalized)
+
           return {
             address: normalizeAddress(tokenAddress),
-            from: normalizeAddress(from),
-            to: normalizeAddress(to),
+            from: fromNormalized,
+            to: toNormalized,
             value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
             blockNumber: log.blockNumber,
             transactionIndex: log.transactionIndex,
