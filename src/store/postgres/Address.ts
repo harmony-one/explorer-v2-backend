@@ -47,11 +47,11 @@ export class PostgresStorageAddress implements IStorageAddress {
       if (type === 'erc20') {
         txs = await this.query(
           `
-            select t.*
+            select ce.*, t.timestamp, t.input
             from (
-                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by block_number desc limit $5)
+                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 and ce.event_type = 'Transfer' order by block_number desc limit $5)
                  union all
-                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by block_number desc limit $5)
+                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 and ce.event_type = 'Transfer' order by block_number desc limit $5)
             ) ce
             join transactions t on t.hash = ce.transaction_hash
             order by ce.block_number desc
@@ -63,15 +63,15 @@ export class PostgresStorageAddress implements IStorageAddress {
         // Include both erc721 & erc1155
         txs = await this.query(
           `
-            select t.*
+            select ce.*, t.timestamp
             from (
-                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by block_number desc limit $6)
+                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 and ce.event_type = 'Transfer' order by block_number desc limit $6)
                  union all
-                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by block_number desc limit $6)
+                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 and ce.event_type = 'Transfer' order by block_number desc limit $6)
                  union all
-                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $3 order by block_number desc limit $6)
+                 (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $3 and ce.event_type = 'Transfer' order by block_number desc limit $6)
                  union all
-                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $3 order by block_number desc limit $6)
+                 (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $3 and ce.event_type = 'Transfer' order by block_number desc limit $6)
             ) ce
             join transactions t on t.hash = ce.transaction_hash
             order by ce.block_number desc
@@ -84,7 +84,9 @@ export class PostgresStorageAddress implements IStorageAddress {
       // for erc20 and erc721 we add logs to payload
       txs = await Promise.all(
         txs.map(fromSnakeToCamelResponse).map(async (tx: any) => {
-          tx.logs = await this.query('select * from logs where transaction_hash=$1', [tx.hash])
+          tx.logs = await this.query('select * from logs where transaction_hash=$1', [
+            tx.transactionHash,
+          ])
           return tx
         })
       )
@@ -144,9 +146,9 @@ export class PostgresStorageAddress implements IStorageAddress {
           select count(*) from
           (
           select * from (
-               (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by ce.block_number desc)
+               (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 and ce.event_type = 'Transfer' order by ce.block_number desc)
                union all
-               (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by ce.block_number desc)
+               (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 and ce.event_type = 'Transfer' order by ce.block_number desc)
           ) ce
           limit $3
           ) ce2
