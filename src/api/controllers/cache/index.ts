@@ -3,8 +3,10 @@ import {config} from 'src/config'
 import {logger} from 'src/logger'
 const l = logger(module, 'cache')
 
-const options = {
-  max: 1000 * 100,
+const {isCacheEnabled, cacheMaxSize} = config.api
+
+const options: LRU.Options<string, any> = {
+  max: cacheMaxSize,
   maxAge: 1000 * 60 * 60 * 24 * 7,
 }
 
@@ -13,7 +15,7 @@ const pruneCheckIntervalMs = 2000
 export const cache = new LRU(options)
 
 export const withCache = async (keys: any[], f: Function, maxAge?: number) => {
-  if (!config.api.isCacheEnabled) {
+  if (!isCacheEnabled) {
     return f()
   }
 
@@ -38,7 +40,7 @@ const prune = () => {
   setTimeout(prune, pruneCheckIntervalMs)
 }
 
-if (config.api.isCacheEnabled) {
+if (isCacheEnabled) {
   l.info('LRU cache enabled')
   prune()
 } else {
