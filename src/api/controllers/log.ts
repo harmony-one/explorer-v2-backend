@@ -93,6 +93,11 @@ export async function getDetailedLogsByField(
 export async function ethGetLogs(shardID: ShardID, params: EthGetLogParams): Promise<any> {
   const {fromBlock, toBlock, ...restParams} = params
 
+  let cacheMaxAge = 2000
+  if (params.blockhash || (fromBlock && toBlock)) {
+    cacheMaxAge = 0 // Set cache forever is blocks range is presented in request
+  }
+
   const filter: EthGetLogFilter = {...restParams}
 
   if (params.blockhash) {
@@ -161,6 +166,6 @@ export async function ethGetLogs(shardID: ShardID, params: EthGetLogParams): Pro
   return await withCache(
     ['ethGetLogs', arguments],
     () => stores[shardID].log.ethGetLogs(filter),
-    2000
+    cacheMaxAge
   )
 }
