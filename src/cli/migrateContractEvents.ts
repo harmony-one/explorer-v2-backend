@@ -109,7 +109,7 @@ const mapTransferEvent = (
       transactionHash: log.transactionHash,
       logIndex: log.logIndex,
       transactionType: contractType,
-      eventType: ContractEventType.Transfer,
+      eventType,
     } as ContractEvent
   }
 }
