@@ -138,6 +138,30 @@ const mapApprovalEvent = (
   } as ContractEvent
 }
 
+const mapApproval721Event = (
+  log: Log,
+  contractType: ContractType,
+  eventType: ContractEventType,
+  abi: any
+) => {
+  const {decodeLog} = abi
+  const {address} = log
+  const [topic0, ...topics] = log.topics
+  const {owner, approved, tokenId} = decodeLog(eventType, log.data, topics)
+  return {
+    address: normalizeAddress(address),
+    from: normalizeAddress(owner),
+    to: '',
+    value: (+!!approved).toString(),
+    blockNumber: log.blockNumber,
+    transactionIndex: log.transactionIndex,
+    transactionHash: log.transactionHash,
+    logIndex: log.logIndex,
+    transactionType: contractType,
+    eventType,
+  } as ContractEvent
+}
+
 const mapApprovalForAllEvent = (
   log: Log,
   contractType: ContractType,
@@ -190,6 +214,9 @@ const parseLogs = (
     .map((log) => {
       try {
         if (eventType === ContractEventType.Approval) {
+          if (contractType === 'erc721') {
+            return mapApproval721Event(log, contractType, eventType, abi)
+          }
           return mapApprovalEvent(log, contractType, eventType, abi)
         }
         if (eventType === ContractEventType.ApprovalForAll) {
