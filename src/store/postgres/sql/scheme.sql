@@ -406,12 +406,13 @@ create table if not exists contract_events
     transaction_type    transaction_type    not null,
     event_type          contract_event_type not null,
     transaction_index   smallint,
+    log_index           smallint,
     transaction_hash    char(66)            not null,
     address             char(42)            not null,
     "from"              char(42)            not null,
     "to"                char(42)            not null,
     value               numeric,
-    unique (transaction_index, transaction_hash, "from", "to")
+    unique (transaction_index, transaction_hash, log_index, "from", "to")
 );
 
 create index if not exists idx_contract_events_from_block_number on contract_events ("from", block_number desc);

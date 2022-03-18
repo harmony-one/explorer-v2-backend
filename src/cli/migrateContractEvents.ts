@@ -88,14 +88,14 @@ const getErc1155Map = async () => {
   }, {})
 }
 
-const mapContractEvent = (
+const mapTransferEvent = (
   log: Log,
-  tokenAddress: string,
   contractType: ContractType,
   eventType: ContractEventType,
   abi: any
 ) => {
   const {decodeLog} = abi
+  const {address: tokenAddress} = log
   const [topic0, ...topics] = log.topics
   const {from, to, value} = decodeLog(eventType, log.data, topics)
   if (![from, to].includes(zeroAddress)) {
@@ -107,19 +107,67 @@ const mapContractEvent = (
       blockNumber: log.blockNumber,
       transactionIndex: log.transactionIndex,
       transactionHash: log.transactionHash,
+      logIndex: log.logIndex,
       transactionType: contractType,
       eventType: ContractEventType.Transfer,
     } as ContractEvent
   }
 }
 
-const writeContractEventsToDb = async (events: ContractEvent[]) => {
-  const store = stores[SHARD_ID]
-  await Promise.all(events.map((e) => store.contract.addContractEvent(e)))
+const mapApprovalEvent = (
+  log: Log,
+  contractType: ContractType,
+  eventType: ContractEventType,
+  abi: any
+) => {
+  const {decodeLog} = abi
+  const {address} = log
+  const [topic0, ...topics] = log.topics
+  const {_owner, _spender, _value: value} = decodeLog(eventType, log.data, topics)
+  return {
+    address: normalizeAddress(address),
+    from: normalizeAddress(_owner),
+    to: normalizeAddress(_spender),
+    value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
+    blockNumber: log.blockNumber,
+    transactionIndex: log.transactionIndex,
+    transactionHash: log.transactionHash,
+    logIndex: log.logIndex,
+    transactionType: contractType,
+    eventType,
+  } as ContractEvent
+}
+
+const mapApprovalForAllEvent = (
+  log: Log,
+  contractType: ContractType,
+  eventType: ContractEventType,
+  abi: any
+) => {
+  const {decodeLog} = abi
+  const [topic0, ...topics] = log.topics
+  // various format for hrc721 and hrc1155
+  const {owner, _owner, operator, _operator, approved, _approved} = decodeLog(
+    eventType,
+    log.data,
+    topics
+  )
+  return {
+    address: normalizeAddress(log.address),
+    from: normalizeAddress(owner || _owner),
+    to: normalizeAddress(operator || _operator),
+    value: (+!!(approved || _approved)).toString(),
+    blockNumber: log.blockNumber,
+    transactionIndex: log.transactionIndex,
+    transactionHash: log.transactionHash,
+    logIndex: log.logIndex,
+    transactionType: contractType,
+    eventType,
+  } as ContractEvent
 }
 
 const writeContractEventsToDbBatch = async (events: ContractEvent[]) => {
-  const size = 2000
+  const size = 1000
   const store = stores[SHARD_ID]
   for (let i = 0; i < events.length; i += size) {
     await store.contract.addContractEventsBatch(events.slice(i, i + size))
@@ -138,11 +186,16 @@ const parseLogs = (
   if (!filteredLogs.length) {
     return []
   }
-  const tokenAddress = filteredLogs[0].address
   return filteredLogs
     .map((log) => {
       try {
-        return mapContractEvent(log, tokenAddress, contractType, eventType, abi)
+        if (eventType === ContractEventType.Approval) {
+          return mapApprovalEvent(log, contractType, eventType, abi)
+        }
+        if (eventType === ContractEventType.ApprovalForAll) {
+          return mapApprovalForAllEvent(log, contractType, eventType, abi)
+        }
+        return mapTransferEvent(log, contractType, eventType, abi)
         // eslint-disable-next-line no-empty
       } catch (_) {}
     })
@@ -196,10 +249,28 @@ const startMigration = async () => {
         ContractEventType.Transfer,
         erc20ABI
       )
+      const erc20Approval = parseLogs(
+        logs.filter((l) => !!erc20Map[l.address]),
+        'erc20',
+        ContractEventType.Approval,
+        erc20ABI
+      )
       const erc721Transfers = parseLogs(
         logs.filter((l) => !!erc721Map[l.address]),
         'erc721',
         ContractEventType.Transfer,
+        erc721ABI
+      )
+      const erc721Approval = parseLogs(
+        logs.filter((l) => !!erc721Map[l.address]),
+        'erc721',
+        ContractEventType.Approval,
+        erc721ABI
+      )
+      const erc721ApprovalForAll = parseLogs(
+        logs.filter((l) => !!erc721Map[l.address]),
+        'erc721',
+        ContractEventType.ApprovalForAll,
         erc721ABI
       )
       const erc1155Transfers = parseLogs(
@@ -208,14 +279,25 @@ const startMigration = async () => {
         ContractEventType.TransferSingle,
         erc1155ABI
       )
+      const erc1155ApprovalForAll = parseLogs(
+        logs.filter((l) => !!erc1155Map[l.address]),
+        'erc1155',
+        ContractEventType.ApprovalForAll,
+        erc1155ABI
+      )
 
       l.info(
-        `Found events: erc20: ${erc20Transfers.length}, erc721: ${erc721Transfers.length}, erc1155: ${erc1155Transfers.length}`
+        `Transfers: erc20: ${erc20Transfers.length}, erc721: ${erc721Transfers.length}, erc1155: ${erc1155Transfers.length},
+        \nApprovals: erc20: ${erc20Approval.length}, erc721: ${erc721ApprovalForAll.length}, erc1155: ${erc1155ApprovalForAll.length}`
       )
       console.time('db_write')
       await writeContractEventsToDbBatch(erc20Transfers)
+      await writeContractEventsToDbBatch(erc20Approval)
       await writeContractEventsToDbBatch(erc721Transfers)
+      await writeContractEventsToDbBatch(erc721Approval)
+      await writeContractEventsToDbBatch(erc721ApprovalForAll)
       await writeContractEventsToDbBatch(erc1155Transfers)
+      await writeContractEventsToDbBatch(erc1155ApprovalForAll)
       console.timeEnd('db_write')
 
       await sleep(SUCCESS_SLEEP_TIMEOUT)

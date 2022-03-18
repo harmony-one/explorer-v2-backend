@@ -167,7 +167,6 @@ export class PostgresStorageAddress implements IStorageAddress {
             `,
         [address, type, subQueryLimit]
       )
-      console.log('count', count)
       return count
     } else if (type === 'erc721') {
       const [{count}] = await this.query(
