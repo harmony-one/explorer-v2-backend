@@ -11,6 +11,7 @@ import {logTime} from 'src/utils/logTime'
 const l = logger(module, 'erc721')
 
 const transferSignature = getEntryByName(ContractEventType.Transfer)!.signature
+const approvalSignature = getEntryByName(ContractEventType.Approval)!.signature
 const approvalForAllSignature = getEntryByName(ContractEventType.ApprovalForAll)!.signature
 
 type IParams = {
@@ -84,7 +85,32 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
         topics
       )
       return {
-        address: normalizeAddress(operator),
+        address: normalizeAddress(log.address),
+        from: normalizeAddress(owner),
+        to: '',
+        value: (+!!approved).toString(),
+        blockNumber: log.blockNumber,
+        logIndex: log.logIndex,
+        transactionIndex: log.transactionIndex,
+        transactionHash: log.transactionHash,
+        transactionType: 'erc721',
+        eventType: ContractEventType.ApprovalForAll,
+      } as ContractEvent
+    })
+    await Promise.all(events.map((e) => store.contract.addContractEvent(e)))
+  }
+
+  const approvalLogs = logs.filter(({topics}) => topics.includes(approvalSignature))
+  if (approvalLogs.length > 0) {
+    const events = approvalLogs.map((log) => {
+      const [topic0, ...topics] = log.topics
+      const {owner, approved, tokenId} = decodeLog(
+        ContractEventType.ApprovalForAll,
+        log.data,
+        topics
+      )
+      return {
+        address: normalizeAddress(log.address),
         from: normalizeAddress(owner),
         to: '',
         value: (+!!approved).toString(),

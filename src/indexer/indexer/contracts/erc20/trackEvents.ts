@@ -76,15 +76,15 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
   if (approveLogs.length > 0) {
     const approveEvents = approveLogs.map((log) => {
       const [topic0, ...topics] = log.topics
-      const {_owner: owner, _spender: spender, _value: value} = decodeLog(
+      const {_owner, _spender, _value: value} = decodeLog(
         ContractEventType.Approval,
         log.data,
         topics
       )
       return {
-        address: normalizeAddress(spender),
-        from: normalizeAddress(owner),
-        to: '',
+        address: normalizeAddress(log.address),
+        from: normalizeAddress(_owner),
+        to: normalizeAddress(_spender),
         value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
         blockNumber: log.blockNumber,
         logIndex: log.logIndex,
