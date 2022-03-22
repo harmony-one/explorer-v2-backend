@@ -52,7 +52,7 @@ export const addContract = async (store: PostgresStorage, contract: Contract) =>
 
       validator({
         name: () => isLength(meta.name, {min: 3, max: 64}),
-        symbol: () => isLength(meta.symbol, {min: 3, max: 10}),
+        symbol: () => isLength(meta.symbol, {min: 3, max: 24}),
       })
     }
 
