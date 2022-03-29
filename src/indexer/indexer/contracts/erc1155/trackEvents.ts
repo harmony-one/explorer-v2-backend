@@ -106,7 +106,7 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
       return {
         address: normalizeAddress(log.address),
         from: normalizeAddress(owner),
-        to: '',
+        to: normalizeAddress(operator),
         value: (+!!approved).toString(),
         blockNumber: log.blockNumber,
         logIndex: log.logIndex,
