@@ -8,7 +8,7 @@ const timeout = () =>
 const fetch = (url: string) => nodeFetch(url).then((r) => r.json())
 
 const getMetricsDAOTxsCount = async (daysCount = 14) => {
-  const items: Array<{COUNT: string; DATE: string}> = await fetch(
+  const items: Array<{COUNT: number; DATE: string}> = await fetch(
     `${MetricsApiUrl}/api/v2/queries/8b1f7226-995c-4091-acc6-84a7f70b9833/data/latest`
   )
   return items
@@ -22,7 +22,7 @@ const getMetricsDAOTxsCount = async (daysCount = 14) => {
 }
 
 const getMetricsDAOWalletsCount = async (daysCount = 14) => {
-  const items: Array<{ACTIVE_WALLETS: string; DATE: string}> = await fetch(
+  const items: Array<{ACTIVE_WALLETS: number; DATE: string}> = await fetch(
     `${MetricsApiUrl}/api/v2/queries/532a5af5-7dc5-4446-be20-ff83a5f32d45/data/latest`
   )
   return items
