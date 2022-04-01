@@ -45,7 +45,7 @@ create table if not exists logs
     unique (transaction_hash, log_index)
 );
 
-create index if not exists idx_logs_address on logs using hash (address);
+-- create index if not exists idx_logs_address on logs using hash (address);
 create index if not exists idx_logs_transaction_hash on logs using hash (transaction_hash);
 -- create index if not exists idx_logs_block_hash on logs using hash (block_hash);
 create index if not exists idx_logs_block_number on logs (block_number desc);
