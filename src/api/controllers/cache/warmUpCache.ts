@@ -11,6 +11,7 @@ export const warmUpCache = async () => {
 
   await Promise.all([
     controllers.getTransactionCountLast14Days(),
+    controllers.getWalletsCountLast14Days(),
     controllers.getBinancePairHistoricalPrice('ONEUSDT'),
     controllers.getBinancePairPrice('ONEUSDT'),
   ])
