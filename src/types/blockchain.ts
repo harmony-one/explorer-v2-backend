@@ -141,6 +141,7 @@ export type RPCTransactionHarmony = {
   transactionIndex: string
   v: string
   value: string
+  hasInternalValues: boolean
 }
 export type StakingTransactionType =
   | 'CreateValidator'

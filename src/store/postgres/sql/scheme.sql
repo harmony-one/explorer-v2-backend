@@ -74,7 +74,8 @@ create table if not exists transactions
     transaction_index smallint,
     v                 text,
     success           boolean,
-    error             text
+    error             text,
+    has_internal_values boolean
 );
 create index if not exists idx_transactions_hash on transactions using hash (hash);
 create index if not exists idx_transactions_hash_harmony on transactions using hash (hash_harmony);
