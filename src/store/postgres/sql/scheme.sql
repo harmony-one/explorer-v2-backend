@@ -87,7 +87,7 @@ create table if not exists transactions
     v                 text,
     success           boolean,
     error             text,
-    extra_mark        transaction_extra_mark            default 'normal',
+    extra_mark        transaction_extra_mark            default 'normal'
 );
 create index if not exists idx_transactions_hash on transactions using hash (hash);
 create index if not exists idx_transactions_hash_harmony on transactions using hash (hash_harmony);
