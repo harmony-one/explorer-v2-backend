@@ -122,6 +122,11 @@ export type TransactionReceipt = RPCTransaction & {
   ]
 }
 
+export enum TransactionExtraMark {
+  normal = 'normal',
+  hasInternalONETransfers = 'hasInternalONETransfers',
+}
+
 export type RPCTransactionHarmony = {
   blockHash: BlockHash
   blockNumber: BlockHexNumber
@@ -141,7 +146,7 @@ export type RPCTransactionHarmony = {
   transactionIndex: string
   v: string
   value: string
-  hasInternalValues: boolean
+  extraMark: TransactionExtraMark
 }
 export type StakingTransactionType =
   | 'CreateValidator'

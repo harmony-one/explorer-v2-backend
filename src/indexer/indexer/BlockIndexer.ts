@@ -1,6 +1,12 @@
 import * as RPCClient from 'src/indexer/rpc/client'
 import {urls, RPCUrls} from 'src/indexer/rpc/RPCUrls'
-import {ShardID, Block, BlockNumber, InternalTransaction} from 'src/types/blockchain'
+import {
+  ShardID,
+  Block,
+  BlockNumber,
+  InternalTransaction,
+  TransactionExtraMark,
+} from 'src/types/blockchain'
 import {arrayChunk, defaultChunkSize} from 'src/utils/arrayChunk'
 import {logger} from 'src/logger'
 import LoggerModule from 'zerg/dist/LoggerModule'
@@ -149,13 +155,15 @@ export class BlockIndexer {
             const blockTxs = block.transactions.map((tx) => {
               // todo handle empty create to addresses
               addressIndexer.add(block, tx.ethHash, 'transaction', tx.from, tx.to)
-              const hasInternalValues = !!internalTxs.find(
+              const extraMark = internalTxs.find(
                 (internalTx) =>
                   internalTx.transactionHash === tx.ethHash && BigInt(internalTx.value) > 0
               )
+                ? TransactionExtraMark.hasInternalONETransfers
+                : TransactionExtraMark.normal
               return {
                 ...tx,
-                hasInternalValues,
+                extraMark,
               }
             })
 

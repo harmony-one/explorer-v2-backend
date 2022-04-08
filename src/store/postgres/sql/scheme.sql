@@ -53,6 +53,18 @@ create index if not exists idx_logs_block_number_asc on logs (block_number);
 create index if not exists idx_logs_block_number_address on logs (block_number desc, address);
 create index if not exists idx_gin_logs_topics on logs using GIN (topics);
 
+do
+$$
+    begin
+        create type transaction_extra_mark as enum (
+            'normal',
+            'hasInternalONETransfers'
+        );
+    exception
+        when duplicate_object then null;
+    end
+$$;
+
 create table if not exists transactions
 (
     shard             smallint                          not null,
@@ -75,7 +87,7 @@ create table if not exists transactions
     v                 text,
     success           boolean,
     error             text,
-    has_internal_values boolean
+    extra_mark        transaction_extra_mark            default 'normal',
 );
 create index if not exists idx_transactions_hash on transactions using hash (hash);
 create index if not exists idx_transactions_hash_harmony on transactions using hash (hash_harmony);
