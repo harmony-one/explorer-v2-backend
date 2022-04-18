@@ -7,6 +7,7 @@ import {
   TransactionQueryValue,
   AddressTransactionType,
   InternalTransaction,
+  FilterEntry,
 } from 'src/types'
 import {validator} from 'src/utils/validators/validators'
 import {
@@ -23,6 +24,7 @@ import {
 } from 'src/utils/validators'
 import {storesAPI as stores} from 'src/store'
 import {withCache} from 'src/api/controllers/cache'
+import {config} from 'src/config'
 
 export async function getRelatedTransactionsByType(
   shardID: ShardID,
@@ -71,6 +73,29 @@ export async function getRelatedTransactionsByType(
   //   type: 'eq',
   //   property: 'address',
   // })
+
+  // HOTFIX: internal_transactions is not indexed for a block less than 23.000.000
+  if (type === 'internal_transaction') {
+    const blockNumberFilter: FilterEntry = {
+      type: 'gte',
+      property: 'block_number',
+      value: config.api.internalTxsBlockNumberStart,
+    }
+
+    if (filter.filters.find((filter) => filter.property === 'block_number')) {
+      filter.filters = filter.filters.map((filter) => {
+        if (filter.property !== 'block_number') {
+          return filter
+        }
+        return {
+          ...filter,
+          ...blockNumberFilter,
+        }
+      })
+    } else {
+      filter.filters.push(blockNumberFilter)
+    }
+  }
 
   return await withCache(
     ['getRelatedTransactionsByType', arguments],
