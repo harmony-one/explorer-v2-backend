@@ -61,6 +61,7 @@ export const config = {
     isEnabled: toBool(process.env.API_IS_ENABLED || '0'),
     isCacheEnabled: toBool(process.env.API_IS_CACHE_ENABLED || '0'),
     cacheMaxSize: +(process.env.API_CACHE_MAX_SIZE || 1000 * 100),
+    internalTxsBlockNumberStart: +(process.env.INTERNAL_TXS_BLOCK_NUMBER_START || 23000000),
     ws: {
       isEnabled: toBool(process.env.API_WS_IS_ENABLED || '0'),
       port: 3001,
