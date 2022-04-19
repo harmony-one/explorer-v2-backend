@@ -4,6 +4,7 @@ import {config} from 'src/config'
 import http, {Server} from 'http'
 import bodyParser from 'body-parser'
 import cors from 'cors'
+import {Request, Response} from 'express'
 import {logger} from 'src/logger'
 import {blockRouter} from 'src/api/rest/routes/block'
 import {transactionRouter} from 'src/api/rest/routes/transaction'
@@ -22,6 +23,7 @@ import {warmUpCache} from 'src/api/controllers/cache/warmUpCache'
 import {rpcRouter} from 'src/api/rest/routes/rpcRouter'
 
 import {transport} from 'src/api/rest/transport'
+import prometheusRegister from 'src/api/prometheus'
 const l = logger(module)
 
 export const RESTServer = async () => {
@@ -61,6 +63,14 @@ export const RESTServer = async () => {
   }
 
   api.use('/v0', routerWithShards0)
+  api.use(
+    '/metrics',
+    async (req: Request, res: Response) => {
+      res.setHeader('Content-Type', prometheusRegister.contentType)
+      res.end(await prometheusRegister.metrics())
+    },
+    transport
+  )
 
   let server: Server
 

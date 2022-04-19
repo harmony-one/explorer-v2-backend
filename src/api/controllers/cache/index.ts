@@ -1,6 +1,7 @@
 import LRU from 'lru-cache'
 import {config} from 'src/config'
 import {logger} from 'src/logger'
+import {withMetrics} from 'src/api/prometheus'
 const l = logger(module, 'cache')
 
 const {isCacheEnabled, cacheMaxSize} = config.api
@@ -14,7 +15,7 @@ const pruneCheckIntervalMs = 2000
 
 export const cache = new LRU(options)
 
-export const withCache = async (keys: any[], f: Function, maxAge?: number) => {
+const getCachedData = async (keys: any[], f: Function, maxAge?: number) => {
   if (!isCacheEnabled) {
     return f()
   }
@@ -33,6 +34,19 @@ export const withCache = async (keys: any[], f: Function, maxAge?: number) => {
   }
 
   return res
+}
+
+export const withCache = async (
+  keys: any[],
+  f: Function,
+  maxAge?: number,
+  includeMetrics = true
+) => {
+  if (includeMetrics) {
+    const [routeName] = keys
+    return withMetrics(routeName, getCachedData(keys, f, maxAge))
+  }
+  return getCachedData(keys, f, maxAge)
 }
 
 const prune = () => {
