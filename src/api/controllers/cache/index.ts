@@ -43,7 +43,12 @@ export const withCache = async (
   includeMetrics = true
 ) => {
   if (includeMetrics) {
-    const [routeName] = keys
+    const [route, params] = keys
+    let routeName = route
+    if (route === 'getRelatedTransactionsByType') {
+      const transactionType = params['2'] // transaction, staking_transaction, internal_transaction
+      routeName = `${route}_${transactionType}}`
+    }
     return withMetrics(routeName, getCachedData(keys, f, maxAge))
   }
   return getCachedData(keys, f, maxAge)
