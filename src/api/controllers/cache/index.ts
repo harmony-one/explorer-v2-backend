@@ -47,7 +47,7 @@ export const withCache = async (
     let routeName = route
     if (route === 'getRelatedTransactionsByType') {
       const transactionType = params['2'] // transaction, staking_transaction, internal_transaction
-      routeName = `${route}_${transactionType}}`
+      routeName = `${route}_${transactionType}`
     }
     return withMetrics(routeName, getCachedData(keys, f, maxAge))
   }
