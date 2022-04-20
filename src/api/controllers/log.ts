@@ -85,8 +85,10 @@ export async function getDetailedLogsByField(
     offset: isOffset(offset),
   })
 
-  return await withCache(['getDetailedLogsByField', arguments], () =>
-    stores[shardID].log.getDetailedLogsByField(field, value, limit, offset)
+  return await withCache(
+    ['getDetailedLogsByField', arguments],
+    () => stores[shardID].log.getDetailedLogsByField(field, value, limit, offset),
+    10000
   )
 }
 
