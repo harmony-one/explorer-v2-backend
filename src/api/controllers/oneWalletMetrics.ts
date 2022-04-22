@@ -7,14 +7,16 @@ export async function oneWalletGetMetrics(): Promise<any> {
   const addressList = await withCache(
     ['oneWalletGetMetrics'],
     () => stores[0].oneWalletMetrics.getWallets(),
-    1000 * 60 * 60 * 23
+    1000 * 60 * 60 * 23,
+    false
   )
 
   const count = addressList.length
   const totalAmount = await withCache(
     ['oneWalletGetBalances'],
     () => getTotalAmount(addressList),
-    1000 * 60 * 60 * 23
+    1000 * 60 * 60 * 23,
+    false
   )
 
   return {
