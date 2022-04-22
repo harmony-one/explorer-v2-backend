@@ -15,7 +15,8 @@ export async function oneWalletGetMetrics(): Promise<any> {
   const totalAmount = await withCache(
     ['oneWalletGetBalances'],
     () => getTotalAmount(addressList),
-    1000 * 60 * 60 * 23
+    1000 * 60 * 60 * 23,
+    false
   )
 
   return {
