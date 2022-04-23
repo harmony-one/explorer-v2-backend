@@ -12,7 +12,7 @@ const requestDurationMs = new Prometheus.Histogram({
   name: 'request_duration_seconds',
   help: 'Duration of requests in seconds',
   labelNames: ['route'],
-  buckets: [0.1, 0.5, 1, 5, 10, 30],
+  buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 10],
 })
 
 register.registerMetric(requestDurationMs)
