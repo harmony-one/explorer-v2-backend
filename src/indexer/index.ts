@@ -11,6 +11,7 @@ import * as RPCClient from 'src/indexer/rpc/client'
 import {urls, RPCUrls} from 'src/indexer/rpc/RPCUrls'
 
 import {walletCountIndexer} from 'src/indexer/indexer/metrics/walletCount'
+import {oneWalletIndexer} from 'src/indexer/indexer/metrics/oneWallet'
 
 const l = logger(module)
 
@@ -38,6 +39,10 @@ export const indexer = async () => {
   // todo enabled flag config for the task
   if (config.indexer.shards.includes(0)) {
     walletCountIndexer()
+  }
+
+  if (config.indexer.isSyncingOneWalletEnabled && config.indexer.shards.includes(0)) {
+    oneWalletIndexer()
   }
 
   if (config.indexer.isSyncingLogsEnabled && config.indexer.shards.includes(0)) {

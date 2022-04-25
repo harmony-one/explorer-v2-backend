@@ -222,6 +222,23 @@ export class BlockIndexer {
         )
       }
 
+      const addOneWalletOwners = (blocksInternalTxs: InternalTransaction[][]) => {
+        const oneWalletAddresses = [
+          '0xc8cd0c9ca68b853f73917c36e9276770a8d8e4e0',
+          '0xe0f4dda31750e410a7cc62f7aa5ae95fa56f050d',
+          '0x743ae189917d5b762cedbc51fac4e0c5adf43132',
+        ]
+        const createOneWalletTxs = blocksInternalTxs.flat().filter((tx) => {
+          const {from, type} = tx
+          return type === 'create' && oneWalletAddresses.includes(from.toLowerCase())
+        })
+        return Promise.all(
+          createOneWalletTxs.map((tx) =>
+            store.oneWalletMetrics.addOwner(tx.to.toLowerCase(), tx.transactionHash, tx.blockNumber)
+          )
+        )
+      }
+
       const blocks = await Promise.all(
         range(this.batchCount).map(async (_, i) => {
           const from = startBlock + i * blockRange
@@ -238,6 +255,7 @@ export class BlockIndexer {
           await addBlocks(blocks)
           await addTransactions(blocks, blocksInternalTxs)
           await addStakingTransactions(blocks)
+          await addOneWalletOwners(blocksInternalTxs)
           return addTraceBlocks(filterBlocks(blocks), blocksInternalTxs)
         })
       ).then((res) => res.flatMap((b) => b).filter((b) => b))
