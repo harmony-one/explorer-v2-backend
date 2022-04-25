@@ -5,8 +5,8 @@ const l = logger(module)
 const interval = 1000 * 60 * 60 * 12
 
 export const walletCountIndexer = () => {
-  l.info('Wallet counter starting...')
-  l.warn('Heavy task, make sure you need it enabled')
+  // l.info('Wallet counter starting...')
+  // l.warn('Heavy task, make sure you need it enabled')
   // loop()
 }
 
