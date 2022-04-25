@@ -23,28 +23,6 @@ export class PostgresStorageOneWalletMetrics {
     )
   }
 
-  updateBalance = (address: string, balance: number) => {
-    return this.query(
-      `
-            update onewallet_owners
-            set balance = $2
-            where address = $1;
-      `,
-      [address, balance]
-    )
-  }
-
-  markBalanceIsUpdated = (address: string, isBalanceUpdated = false) => {
-    return this.query(
-      `
-            update onewallet_owners
-            set is_balance_updated = $2
-            where address = $1;
-      `,
-      [address, isBalanceUpdated]
-    )
-  }
-
   getAddressesToUpdate = async (offset = 0, limit = 100000) => {
     const res: Array<{address: string}> = await this.query(
       `
