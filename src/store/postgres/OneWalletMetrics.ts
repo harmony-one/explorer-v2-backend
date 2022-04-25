@@ -37,12 +37,7 @@ export class PostgresStorageOneWalletMetrics {
   }
 
   getAddressesToUpdateCount = async () => {
-    const res = await this.query(
-      `
-      select count(*) from onewallet_owners
-    `,
-      []
-    )
+    const res = await this.query(`select count(*) from onewallet_owners`, [])
     return res[0].count
   }
 
@@ -50,9 +45,8 @@ export class PostgresStorageOneWalletMetrics {
     const res = await this.query(
       `
       SELECT extract(day from current_date - created_at) AS days
-      from onewallet_metrics om 
-      order by id desc 
-      offset 0
+      from onewallet_metrics
+      order by id desc
       limit 1
     `,
       []
