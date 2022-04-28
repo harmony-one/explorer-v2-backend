@@ -39,7 +39,9 @@ export async function getInternalTransactionsByField(
     })
   }
 
-  return await withCache(['getInternalTransactionsByField', arguments], () =>
-    stores[shardID].internalTransaction.getInternalTransactionsByField(field, value)
+  return await withCache(
+    ['getInternalTransactionsByField', arguments],
+    () => stores[shardID].internalTransaction.getInternalTransactionsByField(field, value),
+    1000 * 10
   )
 }

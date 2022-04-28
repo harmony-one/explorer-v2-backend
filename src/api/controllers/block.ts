@@ -21,8 +21,10 @@ export async function getBlockByNumber(shardID: ShardID, blockNumber: number) {
     blockNumber: isBlockNumber(blockNumber),
   })
 
-  return await withCache(['getBlockByNumber', arguments], () =>
-    stores[shardID].block.getBlockByNumber(blockNumber)
+  return await withCache(
+    ['getBlockByNumber', arguments],
+    () => stores[shardID].block.getBlockByNumber(blockNumber),
+    1000 * 10
   )
 }
 
@@ -32,8 +34,10 @@ export async function getBlockByHash(shardID: ShardID, blockHash: string) {
     blockHash: is64CharHexHash(blockHash),
   })
 
-  return await withCache(['getBlockByHash', arguments], () =>
-    stores[shardID].block.getBlockByHash(blockHash)
+  return await withCache(
+    ['getBlockByHash', arguments],
+    () => stores[shardID].block.getBlockByHash(blockHash),
+    2000
   )
 }
 
