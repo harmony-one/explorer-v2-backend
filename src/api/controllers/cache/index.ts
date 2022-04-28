@@ -8,7 +8,7 @@ const {isCacheEnabled, cacheMaxSize} = config.api
 
 const options: LRU.Options<string, any> = {
   max: cacheMaxSize,
-  maxAge: 1000 * 60 * 60 * 24 * 7,
+  maxAge: 1000 * 60 * 60,
 }
 
 const pruneCheckIntervalMs = 2000

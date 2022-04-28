@@ -18,7 +18,9 @@ export async function getSignaturesByHash(
     hash: is64CharHexSignature(hash),
   })
 
-  return await withCache(['getSignaturesByHash', arguments], () =>
-    stores[0].signature.getSignaturesByHash(hash)
+  return await withCache(
+    ['getSignaturesByHash', arguments],
+    () => stores[0].signature.getSignaturesByHash(hash),
+    1000 * 10
   )
 }

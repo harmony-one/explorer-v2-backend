@@ -149,8 +149,10 @@ export async function getContractsByField(
     value: isAddress(value),
   })
 
-  const res = await withCache(['getContractByField', arguments], () =>
-    stores[shardID].contract.getContractByField(field, value)
+  const res = await withCache(
+    ['getContractByField', arguments],
+    () => stores[shardID].contract.getContractByField(field, value),
+    1000 * 10
   )
 
   if (field === 'address') {
