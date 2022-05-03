@@ -1,4 +1,5 @@
 import {Pool} from 'pg'
+import knex, {Knex} from 'knex'
 import {logger} from 'src/logger'
 import {scheme} from './scheme'
 import {IStorage} from 'src/store/interface'
@@ -31,6 +32,7 @@ const sleep = (time = 1000) => new Promise((r) => setTimeout(r, time))
 
 export class PostgresStorage implements IStorage {
   db: Pool
+  knexPool: Knex
   block: PostgresStorageBlock
   log: PostgresStorageLog
   transaction: PostgresStorageTransaction
@@ -55,10 +57,24 @@ export class PostgresStorage implements IStorage {
 
   constructor(options: PostgresStorageOptions) {
     this.shardID = options.shardID
+
+    this.knexPool = knex({
+      client: 'pg',
+      version: '7.2',
+      connection: {
+        host: options.host,
+        port: options.port,
+        user: config.store.postgres[this.shardID].user,
+        password: config.store.postgres[this.shardID].password,
+        database: options.database,
+      },
+      pool: {min: 0, max: options.poolSize},
+    })
+
     this.block = new PostgresStorageBlock(this.query)
     this.log = new PostgresStorageLog(this.query)
     this.transaction = new PostgresStorageTransaction(this.query)
-    this.internalTransaction = new PostgresStorageInternalTransaction(this.query)
+    this.internalTransaction = new PostgresStorageInternalTransaction(this.query, this.knexPool)
     this.staking = new PostgresStorageStakingTransaction(this.query, this.shardID)
     this.indexer = new PostgresStorageIndexer(this.query)
     this.address = new PostgresStorageAddress(this.query)
