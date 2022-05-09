@@ -48,8 +48,10 @@ export async function getLogsByField(
     })
   }
 
-  return await withCache(['getLogsByField', arguments], () =>
-    stores[shardID].log.getLogsByField(field, value)
+  return await withCache(
+    ['getLogsByField', arguments],
+    () => stores[shardID].log.getLogsByField(field, value),
+    1000 * 10
   )
 }
 
@@ -85,18 +87,15 @@ export async function getDetailedLogsByField(
     offset: isOffset(offset),
   })
 
-  return await withCache(['getDetailedLogsByField', arguments], () =>
-    stores[shardID].log.getDetailedLogsByField(field, value, limit, offset)
+  return await withCache(
+    ['getDetailedLogsByField', arguments],
+    () => stores[shardID].log.getDetailedLogsByField(field, value, limit, offset),
+    10000
   )
 }
 
 export async function ethGetLogs(shardID: ShardID, params: EthGetLogParams): Promise<any> {
   const {fromBlock, toBlock, ...restParams} = params
-
-  let cacheMaxAge = 2000
-  if (params.blockhash || (fromBlock && toBlock)) {
-    cacheMaxAge = 0 // Set cache forever is blocks range is presented in request
-  }
 
   const filter: EthGetLogFilter = {...restParams}
 
@@ -166,6 +165,6 @@ export async function ethGetLogs(shardID: ShardID, params: EthGetLogParams): Pro
   return await withCache(
     ['ethGetLogs', arguments],
     () => stores[shardID].log.ethGetLogs(filter),
-    cacheMaxAge
+    2000
   )
 }

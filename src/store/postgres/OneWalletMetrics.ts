@@ -13,16 +13,72 @@ export class PostgresStorageOneWalletMetrics {
     this.query = query
   }
 
-  getWallets = async (): Promise<Address[]> => {
+  addOwner = (address: string, txHash: string, blockNumber: number) => {
+    return this.query(
+      `
+            insert into onewallet_owners (address, transaction_hash, block_number) values($1, $2, $3)
+            on conflict (address) do nothing;
+      `,
+      [address, txHash, blockNumber]
+    )
+  }
+
+  getAddressesToUpdate = async (offset = 0, limit = 100000) => {
+    const res: Array<{address: string}> = await this.query(
+      `
+      select * from onewallet_owners
+      order by block_number desc
+      offset $1
+      limit $2
+    `,
+      [offset, limit]
+    )
+    return res.map((item) => item.address)
+  }
+
+  getAddressesToUpdateCount = async () => {
+    const res = await this.query(`select count(*) from onewallet_owners`, [])
+    return res[0].count
+  }
+
+  getMetricsLastUpdateDiff = async (): Promise<number> => {
     const res = await this.query(
       `
-            select "to" from internal_transactions
-            where "from" = any ($1) and type='create'
+      SELECT extract(day from current_date - created_at) AS days
+      from onewallet_metrics
+      order by id desc
+      limit 1
+    `,
+      []
+    )
+    return res.length > 0 ? +res[0].days : Infinity
+  }
+
+  addMetrics = (count: string, totalBalance: string) => {
+    return this.query(
+      `
+      insert into onewallet_metrics (owners_count, total_balance)
+      values ($1, $2)
+      on conflict (created_at) do nothing;
+    `,
+      [count, totalBalance]
+    )
+  }
+
+  getMetrics = async (): Promise<{count: string; totalAmount: string}> => {
+    const res = await this.query(
+      `
+            select owners_count as count, total_balance as balance
+            from onewallet_metrics
+            order by id desc
+            limit 1
       `,
-      [oneWalletAddresses]
+      []
     )
 
-    // @ts-ignore
-    return res.map((r) => r.to)
+    return {
+      count: res.length ? res[0].count : '0',
+      totalAmount: res.length ? res[0].balance : '0',
+    }
   }
 }

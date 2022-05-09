@@ -24,6 +24,10 @@ erc20Router.get('/token/:address/holders', catchAsync(getERC20TokenHolders))
 export async function getERC20TokenHolders(req: Request, res: Response, next: NextFunction) {
   const {address} = req.params
   const {offset, limit} = req.query
-  const data = await controllers.getERC20TokenHolders(address)
+  const filter = {
+    offset: (+offset! as number) || 0,
+    limit: (+limit! as number) || 100,
+  }
+  const data = await controllers.getERC20TokenHolders(address, filter.limit, filter.offset)
   next(data)
 }

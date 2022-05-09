@@ -36,7 +36,7 @@ export const addContract = async (store: PostgresStorage, contract: Contract) =>
 
     validator({
       name: () => isLength(params.name, {min: 3, max: 64}),
-      symbol: () => isLength(params.symbol, {min: 3, max: 10}),
+      symbol: () => isLength(params.symbol, {min: 3, max: 24}),
     })
   } catch (err) {
     l.debug(`Failed to get contract ${contract.address} info`, err.message || err)
@@ -45,8 +45,8 @@ export const addContract = async (store: PostgresStorage, contract: Contract) =>
 
   const erc721: IERC721 = {
     address: contract.address,
-    name: params.name.replace('\u0000', ''),
-    symbol: params.symbol.replace('\u0000', ''),
+    name: params.name.replaceAll('\u0000', ''),
+    symbol: params.symbol.replaceAll('\u0000', ''),
     lastUpdateBlockNumber: contract.blockNumber,
   }
   l.info(`Found new contract "${erc721.name}" at ${contract.blockNumber}`)

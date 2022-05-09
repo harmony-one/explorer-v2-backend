@@ -52,7 +52,7 @@ export const addContract = async (store: PostgresStorage, contract: Contract) =>
 
       validator({
         name: () => isLength(meta.name, {min: 3, max: 64}),
-        symbol: () => isLength(meta.symbol, {min: 3, max: 10}),
+        symbol: () => isLength(meta.symbol, {min: 3, max: 24}),
       })
     }
 
@@ -66,8 +66,8 @@ export const addContract = async (store: PostgresStorage, contract: Contract) =>
 
   const erc1155: IERC1155 = {
     address: contract.address,
-    name: meta.name.replace('\u0000', ''),
-    symbol: meta.symbol.replace('\u0000', ''),
+    name: meta.name.replaceAll('\u0000', ''),
+    symbol: meta.symbol.replaceAll('\u0000', ''),
     lastUpdateBlockNumber: contract.blockNumber,
     meta: metaJSON,
     contractURI: params.contractURI,

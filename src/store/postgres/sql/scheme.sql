@@ -45,13 +45,25 @@ create table if not exists logs
     unique (transaction_hash, log_index)
 );
 
-create index if not exists idx_logs_address on logs using hash (address);
+-- create index if not exists idx_logs_address on logs using hash (address);
 create index if not exists idx_logs_transaction_hash on logs using hash (transaction_hash);
 -- create index if not exists idx_logs_block_hash on logs using hash (block_hash);
 create index if not exists idx_logs_block_number on logs (block_number desc);
 create index if not exists idx_logs_block_number_asc on logs (block_number);
 create index if not exists idx_logs_block_number_address on logs (block_number desc, address);
 create index if not exists idx_gin_logs_topics on logs using GIN (topics);
+
+do
+$$
+    begin
+        create type transaction_extra_mark as enum (
+            'normal',
+            'hasInternalONETransfers'
+        );
+    exception
+        when duplicate_object then null;
+    end
+$$;
 
 create table if not exists transactions
 (
@@ -74,7 +86,8 @@ create table if not exists transactions
     transaction_index smallint,
     v                 text,
     success           boolean,
-    error             text
+    error             text,
+    extra_mark        transaction_extra_mark            default 'normal'
 );
 create index if not exists idx_transactions_hash on transactions using hash (hash);
 create index if not exists idx_transactions_hash_harmony on transactions using hash (hash_harmony);
@@ -418,3 +431,18 @@ create table if not exists contract_events
 create index if not exists idx_contract_events_from_block_number on contract_events ("from", block_number desc);
 create index if not exists idx_contract_events_to_block_number on contract_events ("to", block_number desc);
 create index if not exists idx_contract_events_transaction_hash on contract_events using hash (transaction_hash);
+
+create table if not exists onewallet_owners
+(
+    address             char(42) not null primary key,
+    transaction_hash    char(66) not null,
+    block_number        bigint not null
+);
+
+create table if not exists onewallet_metrics
+(
+    id                  serial primary key,
+    created_at          timestamp unique not null default current_date,
+    owners_count        bigint not null default (0),
+    total_balance       numeric default (0)
+);

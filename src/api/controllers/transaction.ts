@@ -34,8 +34,10 @@ export async function getTransactionByField(
     })
   }
 
-  const txs = await withCache(['getTransactionByField', arguments], () =>
-    stores[shardID].transaction.getTransactionsByField(field, value)
+  const txs = await withCache(
+    ['getTransactionByField', arguments],
+    () => stores[shardID].transaction.getTransactionsByField(field, value),
+    1000 * 10
   )
 
   if (!txs!.length) {

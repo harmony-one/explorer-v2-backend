@@ -71,7 +71,7 @@ export const getLogs = (
   return transport(shardID, 'eth_getLogs', [o])
 }
 
-export const getBalance = (shardID: ShardID, address: Address): Promise<TransactionReceipt> => {
+export const getBalance = (shardID: ShardID, address: Address): Promise<string> => {
   return transport(shardID, 'hmy_getBalance', [address, 'latest'])
 }
 

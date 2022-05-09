@@ -1,20 +1,21 @@
 import LRU from 'lru-cache'
 import {config} from 'src/config'
 import {logger} from 'src/logger'
+import {withMetrics} from 'src/api/prometheus'
 const l = logger(module, 'cache')
 
 const {isCacheEnabled, cacheMaxSize} = config.api
 
 const options: LRU.Options<string, any> = {
   max: cacheMaxSize,
-  maxAge: 1000 * 60 * 60 * 24 * 7,
+  maxAge: 1000 * 60 * 60,
 }
 
 const pruneCheckIntervalMs = 2000
 
 export const cache = new LRU(options)
 
-export const withCache = async (keys: any[], f: Function, maxAge?: number) => {
+const getCachedData = async (keys: any[], f: Function, maxAge?: number) => {
   if (!isCacheEnabled) {
     return f()
   }
@@ -33,6 +34,24 @@ export const withCache = async (keys: any[], f: Function, maxAge?: number) => {
   }
 
   return res
+}
+
+export const withCache = async (
+  keys: any[],
+  f: Function,
+  maxAge?: number,
+  includeMetrics = true
+) => {
+  if (includeMetrics) {
+    const [route, params] = keys
+    let routeName = route
+    if (route === 'getRelatedTransactionsByType') {
+      const transactionType = params['2'] // transaction, staking_transaction, internal_transaction
+      routeName = `${route}_${transactionType}`
+    }
+    return withMetrics(routeName, getCachedData(keys, f, maxAge))
+  }
+  return getCachedData(keys, f, maxAge)
 }
 
 const prune = () => {

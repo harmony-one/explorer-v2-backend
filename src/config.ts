@@ -60,7 +60,8 @@ export const config = {
     shards: getCommaSeparatedList(process.env.API_SHARDS).map((s) => +s) as ShardID[],
     isEnabled: toBool(process.env.API_IS_ENABLED || '0'),
     isCacheEnabled: toBool(process.env.API_IS_CACHE_ENABLED || '0'),
-    cacheMaxSize: +(process.env.API_CACHE_MAX_SIZE || 1000 * 100),
+    cacheMaxSize: +(process.env.API_CACHE_MAX_SIZE || 1000 * 10),
+    internalTxsBlockNumberStart: +(process.env.INTERNAL_TXS_BLOCK_NUMBER_START || 23000000),
     ws: {
       isEnabled: toBool(process.env.API_WS_IS_ENABLED || '0'),
       port: 3001,
@@ -87,6 +88,7 @@ export const config = {
     isSyncingBlocksEnabled: toBool(process.env.INDEXER_BLOCKS_IS_ENABLED || '0'),
     isSyncingLogsEnabled: toBool(process.env.INDEXER_LOGS_IS_ENABLED || '0'),
     isSyncingContractsEnabled: toBool(process.env.INDEXER_CONTRACTS_IS_ENABLED || '0'),
+    isSyncingOneWalletEnabled: toBool(process.env.INDEXER_ONEWALLET_IS_ENABLED || '0'),
     trackContractTypes: getCommaSeparatedList(process.env.INDEXER_CONTRACTS_TYPES),
     initialBlockSyncingHeight: +(process.env.INDEXER_INITIAL_BLOCK_SYNCING_HEIGHT || 0),
     // set to the height where smart contracts were introduced on the chain

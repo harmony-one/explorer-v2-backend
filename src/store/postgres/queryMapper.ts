@@ -38,6 +38,7 @@ export const mapNaming: Record<string, string> = {
   ipfs_hash: 'IPFSHash',
   last_update_block_number: 'lastUpdateBlockNumber',
   token_uri: 'tokenURI',
+  extra_mark: 'extraMark',
   event_type: 'eventType',
 }
 
