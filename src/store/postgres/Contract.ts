@@ -21,10 +21,7 @@ export class PostgresStorageContract implements IStorageContract {
 
   addContract = async (contract: Contract) => {
     const {query, params} = generateQuery(contract)
-    return await this.query(
-      `insert into contracts ${query} on conflict (address) do nothing;`,
-      params
-    )
+    return await this.query(`insert into contracts ${query} on conflict do nothing;`, params)
   }
 
   getContracts = async (filter: Filter): Promise<Contract[]> => {
@@ -44,8 +41,8 @@ export class PostgresStorageContract implements IStorageContract {
 
   addContractEvent = (event: ContractEvent) => {
     return this.query(
-      `insert into contract_events (block_number, transaction_type, event_type, transaction_index, transaction_hash, address, "from", "to", value)
-            values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `insert into contract_events (block_number, transaction_type, event_type, transaction_index, transaction_hash, log_index, address, "from", "to", value)
+            values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             on conflict do nothing;`,
       [
         event.blockNumber,
@@ -53,6 +50,7 @@ export class PostgresStorageContract implements IStorageContract {
         event.eventType,
         event.transactionIndex,
         event.transactionHash,
+        event.logIndex,
         event.address,
         event.from,
         event.to,
@@ -62,7 +60,7 @@ export class PostgresStorageContract implements IStorageContract {
   }
 
   addContractEventsBatch = (events: ContractEvent[]) => {
-    const paramsNumber = 9
+    const paramsNumber = 10
     const valuesList = events
       .map(
         (e, eventIndex) =>
@@ -81,6 +79,7 @@ export class PostgresStorageContract implements IStorageContract {
         event.eventType,
         event.transactionIndex,
         event.transactionHash,
+        event.logIndex,
         event.address,
         event.from,
         event.to,
@@ -88,7 +87,7 @@ export class PostgresStorageContract implements IStorageContract {
       ]
     })
     return this.query(
-      `insert into contract_events (block_number, transaction_type, event_type, transaction_index, transaction_hash, address, "from", "to", value)
+      `insert into contract_events (block_number, transaction_type, event_type, transaction_index, transaction_hash, log_index, address, "from", "to", value)
             values ${valuesList}
             on conflict do nothing;`,
       paramsList

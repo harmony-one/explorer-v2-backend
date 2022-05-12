@@ -27,25 +27,30 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
   const transferLogs = logs.filter(({topics}) => topics.includes(transferSignature))
 
   if (transferLogs.length > 0) {
-    const addressesToUpdate = new Set<string>() // unique addresses of senders and recipients
-    const tokenAddress = transferLogs[0].address
+    const addressesToUpdate = new Set<{address: string; tokenAddress: string}>() // unique addresses of senders and recipients
     const transferEvents = transferLogs
       .map((log) => {
         const [topic0, ...topics] = log.topics
-        const {from, to, value} = decodeLog(ContractEventType.Transfer, log.data, topics)
-        if (![from, to].includes(zeroAddress)) {
-          const fromNormalized = normalizeAddress(from) as string
-          const toNormalized = normalizeAddress(to) as string
+        const decodedLog = decodeLog(ContractEventType.Transfer, log.data, topics)
+        if (![decodedLog.from, decodedLog.to].includes(zeroAddress)) {
+          const tokenAddress = normalizeAddress(log.address) as string
+          const from = normalizeAddress(decodedLog.from) as string
+          const to = normalizeAddress(decodedLog.to) as string
+          const value =
+            typeof decodedLog.value !== 'undefined'
+              ? BigInt(decodedLog.value).toString()
+              : undefined
 
-          addressesToUpdate.add(fromNormalized)
-          addressesToUpdate.add(toNormalized)
+          addressesToUpdate.add({address: from, tokenAddress})
+          addressesToUpdate.add({address: to, tokenAddress})
 
           return {
-            address: normalizeAddress(tokenAddress),
-            from: fromNormalized,
-            to: toNormalized,
-            value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
+            address: tokenAddress,
+            from,
+            to,
+            value,
             blockNumber: log.blockNumber,
+            logIndex: log.logIndex,
             transactionIndex: log.transactionIndex,
             transactionHash: log.transactionHash,
             transactionType: 'erc20',
@@ -55,7 +60,7 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
       })
       .filter((e) => e) as ContractEvent[]
 
-    const updateBalancesPromises = [...addressesToUpdate.values()].map((address) =>
+    const updateBalancesPromises = [...addressesToUpdate.values()].map(({address, tokenAddress}) =>
       store.erc20.setNeedUpdateBalance(address, tokenAddress)
     )
     const addEventsPromises = transferEvents.map((e) => store.contract.addContractEvent(e))
@@ -71,17 +76,18 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
   if (approveLogs.length > 0) {
     const approveEvents = approveLogs.map((log) => {
       const [topic0, ...topics] = log.topics
-      const {_owner: owner, _spender: spender, _value: value} = decodeLog(
+      const {_owner, _spender, _value: value} = decodeLog(
         ContractEventType.Approval,
         log.data,
         topics
       )
       return {
-        address: normalizeAddress(spender),
-        from: normalizeAddress(owner),
-        to: '',
+        address: normalizeAddress(log.address),
+        from: normalizeAddress(_owner),
+        to: normalizeAddress(_spender),
         value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
         blockNumber: log.blockNumber,
+        logIndex: log.logIndex,
         transactionIndex: log.transactionIndex,
         transactionHash: log.transactionHash,
         transactionType: 'erc20',

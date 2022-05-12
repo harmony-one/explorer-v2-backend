@@ -392,6 +392,7 @@ export type ContractEvent = {
   to: string
   value: string
   blockNumber: string
+  logIndex: string
   transactionIndex: string
   transactionHash: string
   transactionType: ContractType

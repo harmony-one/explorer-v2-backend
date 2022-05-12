@@ -39,6 +39,7 @@ export const mapNaming: Record<string, string> = {
   last_update_block_number: 'lastUpdateBlockNumber',
   token_uri: 'tokenURI',
   extra_mark: 'extraMark',
+  event_type: 'eventType',
 }
 
 export const mapNamingReverse: Record<string, string> = Object.keys(mapNaming).reduce((a, k) => {
