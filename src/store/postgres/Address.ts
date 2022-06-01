@@ -108,6 +108,7 @@ export class PostgresStorageAddress implements IStorageAddress {
         ${filterQuery}
       ) it
       left join transactions t on t.hash  = it.transaction_hash
+      order by block_number desc
       offset $2
       limit $3
     `,
