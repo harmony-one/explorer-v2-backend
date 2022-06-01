@@ -9,12 +9,15 @@ import {
 import {Query} from 'src/store/postgres/types'
 import {fromSnakeToCamelResponse, generateQuery} from 'src/store/postgres/queryMapper'
 import {buildSQLQuery} from 'src/store/postgres/filters'
+import {Knex} from 'knex'
 
 export class PostgresStorageInternalTransaction implements IStorageInternalTransaction {
   query: Query
+  knex: Knex
 
-  constructor(query: Query) {
+  constructor(query: Query, knex: Knex) {
     this.query = query
+    this.knex = knex
   }
 
   addInternalTransaction = async (tx: InternalTransaction) => {
@@ -32,6 +35,27 @@ export class PostgresStorageInternalTransaction implements IStorageInternalTrans
       `insert into internal_transactions ${query} on conflict (transaction_hash, index) do nothing;`,
       params
     )
+  }
+
+  addBatchInternalTransactions = (txs: InternalTransaction[], chunkSize = 1000) => {
+    const rows = txs.map((tx) => {
+      return {
+        index: tx.index,
+        block_number: tx.blockNumber,
+        from: tx.from,
+        to: tx.to,
+        gas: BigInt(tx.gas).toString(),
+        gas_used: BigInt(tx.gasUsed).toString(),
+        input: tx.input,
+        output: tx.output,
+        type: tx.type,
+        value: BigInt(tx.value).toString(),
+        transaction_hash: tx.transactionHash,
+        time: tx.time,
+        error: tx.error,
+      }
+    })
+    return this.knex.batchInsert('internal_transactions', rows, chunkSize)
   }
 
   getInternalTransactionsByField = async (

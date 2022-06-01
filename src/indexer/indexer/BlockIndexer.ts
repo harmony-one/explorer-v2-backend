@@ -126,13 +126,13 @@ export class BlockIndexer {
 
             // txs.map((tx) => monitorTransfers.addInternalTransaction(tx, block))
 
-            // await Promise.all(txs.map((tx) => store.internalTransaction.addInternalTransaction(tx)))
-            const chunks = arrayChunk(internalTxs, defaultChunkSize)
-            for (const chunk of chunks) {
-              await Promise.all(
-                chunk.map((tx: any) => store.internalTransaction.addInternalTransaction(tx))
-              )
-            }
+            // const chunks = arrayChunk(internalTxs, defaultChunkSize)
+            // for (const chunk of chunks) {
+            //   await Promise.all(
+            //     chunk.map((tx: any) => store.internalTransaction.addInternalTransaction(tx))
+            //   )
+            // }
+            await store.internalTransaction.addBatchInternalTransactions(internalTxs)
 
             await Promise.all(
               internalTxs
