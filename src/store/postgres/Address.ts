@@ -50,7 +50,7 @@ export class PostgresStorageAddress implements IStorageAddress {
             select ce.*, t.timestamp, t.input
             from (
                  (select * from contract_events ce where ce.from = $1 and ce.transaction_type = $2 order by block_number desc limit $5)
-                 union all
+                 union
                  (select * from contract_events ce where ce.to = $1 and ce.transaction_type = $2 order by block_number desc limit $5)
             ) ce
             join transactions t on t.hash = ce.transaction_hash
@@ -70,7 +70,7 @@ export class PostgresStorageAddress implements IStorageAddress {
                     and (transaction_type = 'erc721' or transaction_type = 'erc1155')
                     order by block_number desc limit $4
                  )
-                 union all
+                 union
                  (select * from contract_events ce
                     where ce.to = $1
                     and (transaction_type = 'erc721' or transaction_type = 'erc1155')
@@ -102,7 +102,7 @@ export class PostgresStorageAddress implements IStorageAddress {
       select it.*, t.input, t.timestamp from (
         select * from (
         (select * from internal_transactions it ${filterQuery} and it.from = $1 order by block_number desc limit $4)
-        union all 
+        union 
         (select * from internal_transactions it ${filterQuery} and it.to = $1 order by block_number desc limit $4)
         ) it
         ${filterQuery}
@@ -125,7 +125,7 @@ export class PostgresStorageAddress implements IStorageAddress {
         select t.*
         from (
             (select * from ${txsTable} t where t.from = $1 order by block_number desc limit $2)
-            union all
+            union
             (select * from ${txsTable} t where t.to = $1 order by block_number desc limit $2)
         ) t
         ${filterQuery}
@@ -155,7 +155,7 @@ export class PostgresStorageAddress implements IStorageAddress {
                (select * from contract_events ce
                     where ce.from = $1 and ce.transaction_type = $2
                )
-               union all
+               union
                (select * from contract_events ce
                     where ce.to = $1 and ce.transaction_type = $2
                )
@@ -178,7 +178,7 @@ export class PostgresStorageAddress implements IStorageAddress {
                     and (transaction_type = 'erc721' or transaction_type = 'erc1155')
                     order by block_number desc limit $2
                  )
-                 union all
+                 union
                  (select * from contract_events ce
                     where ce.to = $1
                     and (transaction_type = 'erc721' or transaction_type = 'erc1155')
@@ -199,7 +199,7 @@ export class PostgresStorageAddress implements IStorageAddress {
       select count(t.*) from (
         select * from (
           (select * from internal_transactions it ${filterQuery} and it.from = $1)
-          union all 
+          union 
           (select * from internal_transactions it ${filterQuery} and it.to = $1)
         ) it
         ${filterQuery}
@@ -220,7 +220,7 @@ export class PostgresStorageAddress implements IStorageAddress {
       select count(*)
         from (
             (select * from ${tableName} t where t.from = $1 limit $2)
-            union all
+            union
             (select * from ${tableName} t where t.to = $1 limit $2)
         ) t
     `,
