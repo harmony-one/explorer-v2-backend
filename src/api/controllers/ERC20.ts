@@ -4,10 +4,11 @@ import {withCache} from 'src/api/controllers/cache'
 import {validator} from 'src/utils/validators/validators'
 import {isAddress, isShard, isOffset, isLimit} from 'src/utils/validators'
 
-export async function getAllERC20(): Promise<IERC20[] | null> {
+// Include only object values to reduce data transfer size
+export async function getAllERC20(fullJson = true): Promise<IERC20[] | null> {
   return await withCache(
     ['getAllERC20', arguments],
-    () => stores[0].erc20.getAllERC20(),
+    () => (fullJson ? stores[0].erc20.getAllERC20() : stores[0].erc20.getAllERC20Values()),
     1000 * 60 * 5
   )
 }
@@ -18,7 +19,7 @@ export async function getUserERC20Balances(address: Address): Promise<IERC20Bala
   })
 
   return await withCache(
-    ['getAllERC20', arguments],
+    ['getUserERC20Balances', arguments],
     () => stores[0].erc20.getUserBalances(address),
     1000 * 60 * 5
   )

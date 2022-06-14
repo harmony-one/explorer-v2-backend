@@ -42,6 +42,16 @@ export class PostgresStorageERC1155 implements IStorageERC1155 {
     return res.map(fromSnakeToCamelResponse)
   }
 
+  getAllERC1155Values = async (): Promise<string | number | null[]> => {
+    const res = await this.query(
+      `select address, symbol, name, total_supply, holders, transaction_count, last_update_block_number, null as decimals, null as circulating_supply, meta, contracturi
+           from erc1155`,
+      []
+    )
+
+    return res.map((item: any) => Object.values(item))
+  }
+
   updateERC1155 = async (erc1155: IERC1155) => {
     return this.query(
       `update erc1155 set total_supply=$1, holders=$2, transaction_count=$3 where address=$4;`,
