@@ -11,6 +11,9 @@ import {Query} from 'src/store/postgres/types'
 import {fromSnakeToCamelResponse, generateQuery} from 'src/store/postgres/queryMapper'
 import {buildSQLQuery} from 'src/store/postgres/filters'
 
+// Max depth to search transactions
+const subQueryLimit = 10000
+
 export class PostgresStorageAddress implements IStorageAddress {
   query: Query
 
@@ -39,10 +42,8 @@ export class PostgresStorageAddress implements IStorageAddress {
     filter: Filter
   ): Promise<Address2Transaction[]> => {
     const {offset = 0, limit = 10} = filter
-    const subQueryLimit = 10000000
 
     let txs = []
-
     if (type === 'erc20' || type === 'erc721') {
       if (type === 'erc20') {
         txs = await this.query(
@@ -144,8 +145,6 @@ export class PostgresStorageAddress implements IStorageAddress {
     type: AddressTransactionType,
     filter: Filter
   ): Promise<number> => {
-    const subQueryLimit = 100000 // Count estimate max value
-
     if (type === 'erc20') {
       const [{count}] = await this.query(
         `
