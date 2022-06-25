@@ -38,6 +38,6 @@ export async function getERC20TokenHolders(
   return await withCache(
     ['getERC20TokenHolders', arguments],
     () => stores[0].erc20.getHolders(address, limit, offset),
-    1000 * 60 * 5
+    1000 * 10
   )
 }
