@@ -31,6 +31,7 @@
     "dotenv": "^8.2.0",
     "ethereum-bloom-filters": "^1.0.9",
     "express": "^4.17.1",
+    "express-rate-limit": "^6.4.0",
     "grpc": "^1.24.6",
     "grpc-reflection-js": "^0.1.1",
     "ipfs-http-client": "^50.1.1",

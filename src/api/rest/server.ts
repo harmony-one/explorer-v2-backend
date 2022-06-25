@@ -5,6 +5,7 @@ import http, {Server} from 'http'
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import {Request, Response} from 'express'
+import rateLimit from 'express-rate-limit'
 import {logger} from 'src/logger'
 import {blockRouter} from 'src/api/rest/routes/block'
 import {transactionRouter} from 'src/api/rest/routes/transaction'
@@ -37,6 +38,24 @@ export const RESTServer = async () => {
   api.use(cors())
   api.use(bodyParser.json())
   api.disable('x-powered-by')
+
+  if (config.api.rateLimiter.isEnabled) {
+    const {windowMs, max} = config.api.rateLimiter
+
+    const rateLimiterParams = {
+      windowMs,
+      max,
+      standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+      legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    }
+
+    l.info(`Init REST API rate limiter with params:`, rateLimiterParams)
+
+    const limiter = rateLimit(rateLimiterParams)
+    api.use(limiter) // Apply to all routes
+  } else {
+    l.info(`REST API rate limiter is disabled in config [API_RATE_LIMITER_IS_ENABLED]`)
+  }
 
   const mainRouter0 = Router({mergeParams: true})
   mainRouter0.use('/block', blockRouter)

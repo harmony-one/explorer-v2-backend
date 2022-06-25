@@ -80,6 +80,11 @@ export const config = {
       isEnabled: toBool(process.env.API_GRPC_IS_ENABLED || '0'),
       port: 5051,
     },
+    rateLimiter: {
+      isEnabled: toBool(process.env.API_RATE_LIMITER_IS_ENABLED || '1'),
+      windowMs: +(process.env.API_RATE_LIMITER_WINDOW_MS || 10 * 60 * 1000), // 10 minutes
+      max: +(process.env.API_RATE_LIMITER_MAX || 200), // // Limit each IP to 200 requests per `windowMs` = 10 minutes
+    },
   },
   indexer: {
     chainID: getChainID(process.env.CHAIN_ID || 'mainnet'),
