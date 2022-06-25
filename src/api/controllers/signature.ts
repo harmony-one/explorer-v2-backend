@@ -21,6 +21,6 @@ export async function getSignaturesByHash(
   return await withCache(
     ['getSignaturesByHash', arguments],
     () => stores[0].signature.getSignaturesByHash(hash),
-    1000 * 10
+    1000
   )
 }

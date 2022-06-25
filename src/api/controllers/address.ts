@@ -133,7 +133,7 @@ export async function getRelatedTransactionsCountByType(
   return await withCache(
     ['getRelatedTransactionsCountByType', arguments],
     () => stores[shardID].address.getRelatedTransactionsCountByType(address, type, filter),
-    30 * 1000
+    1000 * 5
   )
 }
 

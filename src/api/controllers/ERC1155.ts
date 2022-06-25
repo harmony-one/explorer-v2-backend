@@ -20,7 +20,7 @@ export async function getUserERC1155Balances(address: Address): Promise<IERC20Ba
   return await withCache(
     ['getUserERC1155Balances', arguments],
     () => stores[0].erc1155.getUserBalances(address),
-    1000 * 60 * 5
+    1000 * 2
   )
 }
 
@@ -32,7 +32,7 @@ export async function getTokenERC1155Balances(address: Address): Promise<IERC20B
   return await withCache(
     ['getTokenERC1155Balances', arguments],
     () => stores[0].erc1155.getTokenBalances(address),
-    1000 * 60 * 5
+    1000 * 10
   )
 }
 

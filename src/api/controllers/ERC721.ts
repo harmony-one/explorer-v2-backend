@@ -20,7 +20,7 @@ export async function getUserERC721Assets(address: Address): Promise<IERC20Balan
   return await withCache(
     ['getUserERC721Assets', arguments],
     () => stores[0].erc721.getUserAssets(address),
-    1000 * 60 * 5
+    1000 * 2
   )
 }
 
@@ -32,6 +32,6 @@ export async function getTokenERC721Assets(address: Address): Promise<IERC20Bala
   return await withCache(
     ['getTokenERC721Assets', arguments],
     () => stores[0].erc721.getTokenAssets(address),
-    1000 * 60 * 5
+    1000 * 2
   )
 }

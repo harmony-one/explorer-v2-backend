@@ -51,7 +51,7 @@ export async function getLogsByField(
   return await withCache(
     ['getLogsByField', arguments],
     () => stores[shardID].log.getLogsByField(field, value),
-    1000 * 10
+    1000
   )
 }
 
