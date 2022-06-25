@@ -60,7 +60,7 @@ export const config = {
     shards: getCommaSeparatedList(process.env.API_SHARDS).map((s) => +s) as ShardID[],
     isEnabled: toBool(process.env.API_IS_ENABLED || '0'),
     isCacheEnabled: toBool(process.env.API_IS_CACHE_ENABLED || '0'),
-    cacheMaxSize: +(process.env.API_CACHE_MAX_SIZE || 1000 * 10),
+    cacheMaxSize: +(process.env.API_CACHE_MAX_SIZE || 1000),
     internalTxsBlockNumberStart: +(process.env.INTERNAL_TXS_BLOCK_NUMBER_START || 23000000),
     ws: {
       isEnabled: toBool(process.env.API_WS_IS_ENABLED || '0'),
@@ -83,7 +83,7 @@ export const config = {
     rateLimiter: {
       isEnabled: toBool(process.env.API_RATE_LIMITER_IS_ENABLED || '1'),
       windowMs: +(process.env.API_RATE_LIMITER_WINDOW_MS || 10 * 60 * 1000), // 10 minutes
-      max: +(process.env.API_RATE_LIMITER_MAX || 200), // // Limit each IP to 200 requests per `windowMs` = 10 minutes
+      max: +(process.env.API_RATE_LIMITER_MAX || 300), // // Limit each IP to 300 requests per `windowMs` = 10 minutes
     },
   },
   indexer: {
