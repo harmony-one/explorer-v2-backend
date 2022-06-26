@@ -4,23 +4,18 @@ import {logger} from 'src/logger'
 import {withMetrics} from 'src/api/prometheus'
 const l = logger(module, 'cache')
 
-const {isCacheEnabled, cacheMaxSize, cacheMaxStorageSize} = config.api
+const {isCacheEnabled, cacheMaxSize} = config.api
 
 const options: LRU.Options<string, any> = {
-  max: cacheMaxSize, // Max number of elements
-  ttl: 1000 * 60 * 60,
-  maxSize: cacheMaxStorageSize, // Total storage size in memory
-  sizeCalculation: (value, key) => {
-    const size = typeof value === 'string' ? value.length : JSON.stringify(value).length
-    return size
-  },
+  max: cacheMaxSize,
+  maxAge: 1000 * 60 * 60,
 }
 
 const pruneCheckIntervalMs = 2000
 
 export const cache = new LRU(options)
 
-const getCachedData = async (keys: any[], f: Function, ttl?: number) => {
+const getCachedData = async (keys: any[], f: Function, maxAge?: number) => {
   if (!isCacheEnabled) {
     return f()
   }
@@ -35,7 +30,7 @@ const getCachedData = async (keys: any[], f: Function, ttl?: number) => {
 
   // don't cache empty arrays and falsy values. still cache empty objects
   if ((!Array.isArray(res) && res) || (Array.isArray(res) && res.length)) {
-    cache.set(key, res, {ttl})
+    cache.set(key, res, maxAge)
   }
 
   return res
