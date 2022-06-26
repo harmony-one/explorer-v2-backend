@@ -40,7 +40,7 @@ export const indexerServer = async () => {
 
     const lastLogs = getLastLogs()
 
-    const cache = {entries: LRUCache.size}
+    const cache = {entries: LRUCache.itemCount}
     // be sure to remove passwords etc
     const json = {config: {...config, store: {}}, state, cache, lastLogs}
     res.json(json)
