@@ -94,6 +94,7 @@ export const config = {
     isSyncingLogsEnabled: toBool(process.env.INDEXER_LOGS_IS_ENABLED || '0'),
     isSyncingContractsEnabled: toBool(process.env.INDEXER_CONTRACTS_IS_ENABLED || '0'),
     isSyncingOneWalletEnabled: toBool(process.env.INDEXER_ONEWALLET_IS_ENABLED || '0'),
+    isSyncedThreshold: +(process.env.INDEXER_IS_SYNCED_THRESHOLD || 10),
     trackContractTypes: getCommaSeparatedList(process.env.INDEXER_CONTRACTS_TYPES),
     initialBlockSyncingHeight: +(process.env.INDEXER_INITIAL_BLOCK_SYNCING_HEIGHT || 0),
     // set to the height where smart contracts were introduced on the chain

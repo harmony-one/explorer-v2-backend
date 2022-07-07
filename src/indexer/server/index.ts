@@ -24,7 +24,7 @@ export const indexerServer = async () => {
   })
 
   api.get('/', async (req, res) => {
-    const shards = config.indexer.shards
+    const {shards, isSyncedThreshold} = config.indexer
 
     const lastSyncedBlocks = await Promise.all(
       shards.map(async (shardID) => {
@@ -32,7 +32,12 @@ export const indexerServer = async () => {
           .number
 
         const blockNumber = await stores[shardID].indexer.getLastIndexedBlockNumber()
-        const isSynced = blockNumber ? latestBlockchainBlock - blockNumber < 10 : false
+        let isSynced = false
+        if (blockNumber) {
+          // isSynced should be "false" if RPC is behind indexer
+          const isRpcAheadOfIndexer = latestBlockchainBlock >= blockNumber
+          isSynced = isRpcAheadOfIndexer && latestBlockchainBlock - blockNumber < isSyncedThreshold
+        }
         return {shardID, blockNumber, latestBlockchainBlock, isSynced}
       })
     )
