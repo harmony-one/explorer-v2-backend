@@ -33,7 +33,7 @@ export const indexerServer = async () => {
         const indexerHeight = await stores[shardID].indexer.getLastIndexedBlockNumber()
         let isSynced = false
         if (indexerHeight) {
-          // isSynced should be "false" if RPC is behind indexer
+          // isSynced should be "false" if RPC height lower that indexer height
           const isRpcAheadOfIndexer = rpcHeight >= indexerHeight
           isSynced = isRpcAheadOfIndexer && rpcHeight - indexerHeight < isSyncedThreshold
         }
