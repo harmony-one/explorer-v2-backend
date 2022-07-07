@@ -28,17 +28,16 @@ export const indexerServer = async () => {
 
     const lastSyncedBlocks = await Promise.all(
       shards.map(async (shardID) => {
-        const latestBlockchainBlock = (await RPCClient.getBlockByNumber(shardID, 'latest', false))
-          .number
+        const rpcHeight = (await RPCClient.getBlockByNumber(shardID, 'latest', false)).number
 
-        const blockNumber = await stores[shardID].indexer.getLastIndexedBlockNumber()
+        const indexerHeight = await stores[shardID].indexer.getLastIndexedBlockNumber()
         let isSynced = false
-        if (blockNumber) {
+        if (indexerHeight) {
           // isSynced should be "false" if RPC is behind indexer
-          const isRpcAheadOfIndexer = latestBlockchainBlock >= blockNumber
-          isSynced = isRpcAheadOfIndexer && latestBlockchainBlock - blockNumber < isSyncedThreshold
+          const isRpcAheadOfIndexer = rpcHeight >= indexerHeight
+          isSynced = isRpcAheadOfIndexer && rpcHeight - indexerHeight < isSyncedThreshold
         }
-        return {shardID, blockNumber, latestBlockchainBlock, isSynced}
+        return {shardID, indexerHeight, rpcHeight, threshold: isSyncedThreshold, isSynced}
       })
     )
     const state = {lastSyncedBlocks}
