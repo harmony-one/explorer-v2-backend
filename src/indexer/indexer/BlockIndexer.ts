@@ -18,6 +18,7 @@ import {contractAddressIndexer} from './сontractAddressIndexer'
 import {config} from 'src/config'
 import {internalTransactionsIgnoreListFilter} from './ignoreList/internalTransactionIgnoreList'
 import * as monitorTransfers from './metrics/transfers'
+import * as monitorBlocks from './metrics/blocks'
 
 const approximateBlockMintingTime = 2000
 const maxBatchCount = 100
@@ -268,6 +269,8 @@ export class BlockIndexer {
       const stakingTransactionsCount = blocks.reduce((a, b) => a + b.stakingTransactions.length, 0)
 
       const failedCount = RPCUrls.getFailedCount(shardID) - failedCountBefore
+
+      monitorBlocks.addBlock(shardID, lastFetchedBlockNumber)
 
       const syncedToBlock = Math.min(
         lastFetchedBlockNumber,
