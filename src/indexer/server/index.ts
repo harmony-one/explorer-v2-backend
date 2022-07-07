@@ -7,6 +7,7 @@ import * as RPCClient from 'src/indexer/rpc/client'
 import {cache as LRUCache} from 'src/api/controllers/cache'
 import {getLastLogs} from 'src/logger/lastLogs'
 import * as monitorTransfers from 'src/indexer/indexer/metrics/transfers'
+import {getBlocksMetrics} from 'src/indexer/indexer/metrics/blocks'
 
 const l = logger(module)
 
@@ -24,16 +25,22 @@ export const indexerServer = async () => {
   })
 
   api.get('/', async (req, res) => {
-    const shards = config.indexer.shards
+    const {shards, isSyncedThreshold} = config.indexer
 
     const lastSyncedBlocks = await Promise.all(
       shards.map(async (shardID) => {
-        const latestBlockchainBlock = (await RPCClient.getBlockByNumber(shardID, 'latest', false))
-          .number
+        const {lastBlockUpdatedAt} = getBlocksMetrics(shardID)
+        const rpcHeight = (await RPCClient.getBlockByNumber(shardID, 'latest', false)).number
 
-        const blockNumber = await stores[shardID].indexer.getLastIndexedBlockNumber()
-        const isSynced = blockNumber ? latestBlockchainBlock - blockNumber < 10 : false
-        return {shardID, blockNumber, latestBlockchainBlock, isSynced}
+        const indexerHeight = await stores[shardID].indexer.getLastIndexedBlockNumber()
+        let isSynced = false
+        if (indexerHeight) {
+          // isSynced should be "false" if RPC height lower that indexer height
+          const isRpcAheadOfIndexer = rpcHeight >= indexerHeight
+          isSynced = isRpcAheadOfIndexer && rpcHeight - indexerHeight < isSyncedThreshold
+        }
+        const isStuck = lastBlockUpdatedAt > 0 && Date.now() - lastBlockUpdatedAt >= 60 * 1000
+        return {shardID, indexerHeight, rpcHeight, threshold: isSyncedThreshold, isSynced, isStuck}
       })
     )
     const state = {lastSyncedBlocks}
