@@ -30,6 +30,16 @@ export class PostgresStorageERC721 implements IStorageERC721 {
     return res.map(fromSnakeToCamelResponse)
   }
 
+  getAllERC721Values = async (): Promise<string | number | null[]> => {
+    const res = await this.query(
+      `select address, symbol, name, total_supply, holders, transaction_count, last_update_block_number, null as decimals, null as circulating_supply, null as meta, null as contracturi
+           from erc721`,
+      []
+    )
+
+    return res.map((item: any) => Object.values(item))
+  }
+
   updateERC721 = async (erc721: IERC721) => {
     return this.query(
       `update erc721 set total_supply=$1, holders=$2, transaction_count=$3 where address=$4;`,

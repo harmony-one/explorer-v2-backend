@@ -1,18 +1,18 @@
 import {storesAPI as stores} from 'src/store'
-import {InternalTransaction, ShardID, IERC20, IERC20Balance, Address} from 'src/types/blockchain'
+import {Address, IERC721, IERC721Asset} from 'src/types/blockchain'
 import {withCache} from 'src/api/controllers/cache'
 import {validator} from 'src/utils/validators/validators'
 import {isAddress, isShard} from 'src/utils/validators'
 
-export async function getAllERC721(): Promise<IERC20[] | null> {
+export async function getAllERC721(fullJson = true): Promise<IERC721[] | null> {
   return await withCache(
     ['getAllERC721', arguments],
-    () => stores[0].erc721.getAllERC721(),
+    () => (fullJson ? stores[0].erc721.getAllERC721() : stores[0].erc721.getAllERC721Values()),
     1000 * 60 * 5
   )
 }
 
-export async function getUserERC721Assets(address: Address): Promise<IERC20Balance[] | null> {
+export async function getUserERC721Assets(address: Address): Promise<IERC721Asset[] | null> {
   validator({
     address: isAddress(address),
   })
@@ -24,7 +24,7 @@ export async function getUserERC721Assets(address: Address): Promise<IERC20Balan
   )
 }
 
-export async function getTokenERC721Assets(address: Address): Promise<IERC20Balance[] | null> {
+export async function getTokenERC721Assets(address: Address): Promise<IERC721Asset[] | null> {
   validator({
     address: isAddress(address),
   })
