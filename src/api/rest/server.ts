@@ -25,6 +25,7 @@ import {rpcRouter} from 'src/api/rest/routes/rpcRouter'
 
 import {transport} from 'src/api/rest/transport'
 import prometheusRegister from 'src/api/prometheus'
+import {verifyApiKey} from 'src/api/middlewares/verifyApiKey'
 const l = logger(module)
 
 export const RESTServer = async () => {
@@ -81,7 +82,7 @@ export const RESTServer = async () => {
     l.debug(`RPC API is disabled`)
   }
 
-  api.use('/v0', routerWithShards0)
+  api.use('/v0', verifyApiKey, routerWithShards0)
   api.use(
     '/metrics',
     async (req: Request, res: Response) => {
