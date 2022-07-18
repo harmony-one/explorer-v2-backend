@@ -70,6 +70,7 @@ export const config = {
     rest: {
       isEnabled: toBool(process.env.API_REST_IS_ENABLED || '0'),
       port: +(process.env.API_REST_PORT || 3000),
+      apiKey: process.env.API_REST_ACCESS_KEY || '',
     },
     // JSON RPC endpoint available on POST /v0/rpc. Requires API_REST_IS_ENABLED=1
     json_rpc: {
