@@ -7,6 +7,7 @@ import * as controllers from 'src/api/controllers'
 import {getMethods} from './utils'
 import {errorToObject} from 'src/api/utils'
 import cors from 'cors'
+import {RateLimiterMemory} from 'rate-limiter-flexible'
 
 const l = logger(module)
 
@@ -46,14 +47,41 @@ export const webSocketServer = async () => {
 
   api.use(cors())
 
+  let rateLimiter: RateLimiterMemory | null = null
+  if (config.api.rateLimiter.isEnabled) {
+    const {windowMs, max} = config.api.rateLimiter
+    const rateLimiterParams = {
+      points: max,
+      duration: Math.floor(windowMs / 1000), // duration in seconds
+    }
+    rateLimiter = new RateLimiterMemory(rateLimiterParams)
+    l.info(`Init WebSocket API rate limiter with params:`, rateLimiterParams)
+  }
+
   io.on('connection', (socket: Socket) => {
     socket.onAny(async (event, params, callback) => {
-      if (typeof callback !== 'function') {
-        return
-      }
+      try {
+        if (typeof callback !== 'function') {
+          return
+        }
 
-      const res = await runMethod(event, params)
-      callback({event: res.event, payload: JSON.stringify(res.response)})
+        if (rateLimiter) {
+          await rateLimiter.consume(socket.handshake.address)
+        }
+
+        const res = await runMethod(event, params)
+        callback({event: res.event, payload: JSON.stringify(res.response)})
+      } catch (e) {
+        // Error from rate limiter
+        if (e.msBeforeNext) {
+          callback({
+            event: 'blocked',
+            payload: JSON.stringify({msg: 'Too many requests, please try again later.'}),
+          })
+        } else {
+          throw e
+        }
+      }
     })
   })
 

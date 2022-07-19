@@ -84,7 +84,7 @@ export const config = {
     rateLimiter: {
       isEnabled: toBool(process.env.API_RATE_LIMITER_IS_ENABLED || '1'),
       windowMs: +(process.env.API_RATE_LIMITER_WINDOW_MS || 10 * 60 * 1000), // 10 minutes
-      max: +(process.env.API_RATE_LIMITER_MAX || 200), // // Limit each IP to 200 requests per `windowMs` = 10 minutes
+      max: +(process.env.API_RATE_LIMITER_MAX || 300), // // Limit each IP to 300 requests per `windowMs` = 10 minutes
     },
   },
   indexer: {
