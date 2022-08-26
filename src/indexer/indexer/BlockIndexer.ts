@@ -256,7 +256,7 @@ export class BlockIndexer {
           await addBlocks(blocks)
           await addTransactions(blocks, blocksInternalTxs)
           await addStakingTransactions(blocks)
-          await addOneWalletOwners(blocksInternalTxs)
+          // await addOneWalletOwners(blocksInternalTxs)
           return addTraceBlocks(filterBlocks(blocks), blocksInternalTxs)
         })
       ).then((res) => res.flatMap((b) => b).filter((b) => b))
