@@ -19,7 +19,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
       `select date_string as timestamp, "count" from transactions_count order by id desc limit $1;`,
       [numberOfDays]
     )
-    return rows
+    return rows.reverse()
   }
 
   // last 14 days of funded addresses
@@ -28,7 +28,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
       `select date_string, "count" from wallets_count order by id desc limit $1;`,
       [numberOfDays]
     )
-    return rows.map((o: any) => ({date: o.date_string, count: o.count}))
+    return rows.map((o: any) => ({date: o.date_string, count: o.count})).reverse()
   }
 
   updateTransactionsCount = async (numberOfDays: number) => {
@@ -65,7 +65,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
 
   private insertStats = (tableName: StatsTable, rows: Array<{date: string; count: string}>) => {
     const preparedRows = rows
-      // .reverse()
+      .reverse()
       .map((row: any) => [row.count, row.date])
       .flat()
 
