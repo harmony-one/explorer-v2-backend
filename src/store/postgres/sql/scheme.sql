@@ -389,6 +389,14 @@ create table if not exists wallets_count
     count bigint not null
 );
 
+create table if not exists transactions_count
+(
+    id serial primary key,
+    date            timestamp default now(),
+    date_string varchar unique not null,
+    count bigint not null
+);
+
 do
 $$
     begin
