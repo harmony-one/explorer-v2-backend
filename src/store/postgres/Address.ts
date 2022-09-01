@@ -145,6 +145,7 @@ export class PostgresStorageAddress implements IStorageAddress {
     filter: Filter
   ): Promise<number> => {
     const subQueryLimit = 100000 // Count estimate max value
+    const filterQuery = buildSQLQuery(filter)
 
     if (type === 'erc20') {
       const [{count}] = await this.query(
@@ -218,11 +219,12 @@ export class PostgresStorageAddress implements IStorageAddress {
       const [{count}] = await this.query(
         `
       select count(*)
-        from (
+      from (      select * from (
             (select * from ${tableName} t where t.from = $1 limit $2)
             union
             (select * from ${tableName} t where t.to = $1 limit $2)
         ) t
+        ${filterQuery}) t1
     `,
         [address, subQueryLimit]
       )
