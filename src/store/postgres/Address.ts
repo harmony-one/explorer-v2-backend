@@ -121,7 +121,6 @@ export class PostgresStorageAddress implements IStorageAddress {
         txsTable = 'staking_transactions'
       }
       const filterQuery = buildSQLQuery(filter)
-      const time1 = Date.now()
       txs = await this.query(
         `
         select t.*
@@ -134,8 +133,6 @@ export class PostgresStorageAddress implements IStorageAddress {
       `,
         [address, subQueryLimit]
       )
-      console.log('filterQuery', filterQuery)
-      console.log('time: ', Date.now() - time1)
     }
 
     return txs
