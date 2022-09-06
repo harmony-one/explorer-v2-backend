@@ -54,7 +54,7 @@ export async function getRelatedTransactionsByType(
 
     if (filter.filters) {
       validator({
-        filter: isFilters(filter.filters, ['block_number', 'timestamp']),
+        filter: isFilters(filter.filters, ['block_number', 'timestamp', 'to']),
       })
     }
   }

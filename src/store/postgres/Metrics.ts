@@ -38,7 +38,10 @@ export class PostgresStorageMetrics implements IStorageMetrics {
             group by 1 order by 1 desc limit $1`,
       [numberOfDays]
     )
-    await this.insertStats(StatsTable.transactions, rows)
+
+    if (rows.length > 0) {
+      await this.insertStats(StatsTable.transactions, rows)
+    }
   }
 
   updateWalletsCount = async (numberOfDays: number) => {
@@ -60,7 +63,9 @@ export class PostgresStorageMetrics implements IStorageMetrics {
       [numberOfDays]
     )
 
-    await this.insertStats(StatsTable.wallets, rows)
+    if (rows.length > 0) {
+      await this.insertStats(StatsTable.wallets, rows)
+    }
   }
 
   private insertStats = (tableName: StatsTable, rows: Array<{date: string; count: string}>) => {

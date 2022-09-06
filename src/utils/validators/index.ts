@@ -58,7 +58,7 @@ export const isFilters: CurryParamValidator = (
   return value
     .map((f) => [
       isOneOfValidator(f.property, allowedFields),
-      isOneOfValidator(f.type, ['gt', 'gte', 'lt', 'lte']),
+      isOneOfValidator(f.type, ['gt', 'gte', 'lt', 'lte', 'eq']),
     ])
     .flatMap((f) => f)
 }

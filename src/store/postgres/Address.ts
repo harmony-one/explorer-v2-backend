@@ -8,8 +8,10 @@ import {
   InternalTransaction,
 } from 'src/types'
 import {Query} from 'src/store/postgres/types'
-import {fromSnakeToCamelResponse, generateQuery} from 'src/store/postgres/queryMapper'
+import {fromSnakeToCamelResponse} from 'src/store/postgres/queryMapper'
 import {buildSQLQuery} from 'src/store/postgres/filters'
+
+const subQueryLimit = 10000
 
 export class PostgresStorageAddress implements IStorageAddress {
   query: Query
@@ -39,7 +41,6 @@ export class PostgresStorageAddress implements IStorageAddress {
     filter: Filter
   ): Promise<Address2Transaction[]> => {
     const {offset = 0, limit = 10} = filter
-    const subQueryLimit = 10000000
 
     let txs = []
 
@@ -144,7 +145,7 @@ export class PostgresStorageAddress implements IStorageAddress {
     type: AddressTransactionType,
     filter: Filter
   ): Promise<number> => {
-    const subQueryLimit = 100000 // Count estimate max value
+    const filterQuery = buildSQLQuery({...filter, offset: 0, limit: subQueryLimit})
 
     if (type === 'erc20') {
       const [{count}] = await this.query(
@@ -217,12 +218,14 @@ export class PostgresStorageAddress implements IStorageAddress {
       }
       const [{count}] = await this.query(
         `
-      select count(*)
-        from (
+      select count(*) from (
+        select * from (
             (select * from ${tableName} t where t.from = $1 limit $2)
             union
             (select * from ${tableName} t where t.to = $1 limit $2)
         ) t
+        ${filterQuery}
+      ) t1
     `,
         [address, subQueryLimit]
       )

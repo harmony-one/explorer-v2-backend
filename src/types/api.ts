@@ -10,6 +10,7 @@ export type FilterProperty =
   | 'token_address'
   | 'transaction_type'
   | 'timestamp'
+  | 'to'
 
 export type TransactionQueryField = 'block_number' | 'block_hash' | 'hash' | 'hash_harmony'
 export type StakingTransactionQueryField = 'block_number' | 'block_hash' | 'hash'
