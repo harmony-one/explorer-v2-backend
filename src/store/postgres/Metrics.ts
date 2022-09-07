@@ -34,30 +34,56 @@ export class PostgresStorageMetrics implements IStorageMetrics {
   updateTransactionsCount = async (numberOfDays: number) => {
     const rows = await this.query(
       `select date_trunc('day', "timestamp") as date, count(1) from "transactions"
-            where "transactions"."timestamp" < date_trunc('day', CURRENT_DATE)
-            group by 1 order by 1 desc limit $1`,
-      [numberOfDays]
+             where "transactions"."timestamp" >= date_trunc('day', now() - interval '14 day')
+             and "transactions"."timestamp" < date_trunc('day', CURRENT_DATE)
+             group by 1
+             order by 1 desc
+             limit 1000`,
+      []
     )
     await this.insertStats(StatsTable.transactions, rows)
   }
 
   updateWalletsCount = async (numberOfDays: number) => {
+    // Select block number to faster filter transactions
+    let blockRows = await this.query(
+      `
+        SELECT "number"
+        FROM blocks
+        WHERE "timestamp" < date_trunc('day', now() - interval '14 day')
+        order by "number" desc
+        LIMIT 1`,
+      []
+    )
+    if (blockRows.length === 0) {
+      // Slower query - in case if blocks table doesn't contain data for older than 2 weeks
+      blockRows = await this.query(
+        `SELECT "number" FROM blocks WHERE "timestamp" > date_trunc('day', now() - interval '14 day')
+        ORDER BY "number" ASC LIMIT 1`,
+        []
+      )
+    }
+    const [{number: blockNumber}] = blockRows
     const rows = await this.query(
-      `WITH base AS (
-            SELECT distinct DATE_TRUNC('DAY', "timestamp") AS date, "from" AS wallet_address FROM transactions
-            UNION ALL
-            SELECT DISTINCT DATE_TRUNC('DAY', "timestamp") AS date, "to" AS wallet_address FROM transactions
-            ),
-            daily AS (
-            SELECT date, COUNT(DISTINCT wallet_address) AS active_wallets
-            FROM base
-            WHERE date < date_trunc('day', CURRENT_DATE)
-            GROUP BY date
-            )
-            SELECT date, active_wallets as count FROM daily
-            ORDER BY date DESC
-            limit $1`,
-      [numberOfDays]
+      `WITH base as (
+              (SELECT date_trunc('day', "timestamp") as date, "from" as wallet_address
+              FROM "transactions"
+              WHERE block_number >= $2)
+              UNION
+              (SELECT date_trunc('day', "timestamp") as date, "to" as wallet_address
+              FROM "transactions"
+              WHERE block_number >= $2)
+          ),
+          daily as (
+          select date, count(distinct(wallet_address)) as active_wallets
+          from base
+          WHERE date < date_trunc('day', CURRENT_DATE)
+          GROUP BY date
+          )
+          SELECT date, active_wallets as count FROM daily
+          ORDER BY date DESC
+          limit $1`,
+      [numberOfDays, blockNumber]
     )
 
     await this.insertStats(StatsTable.wallets, rows)
