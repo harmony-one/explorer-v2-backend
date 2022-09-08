@@ -454,3 +454,12 @@ create table if not exists onewallet_metrics
     owners_count        bigint not null default (0),
     total_balance       numeric default (0)
 );
+
+create table if not exists contracts_proxy
+(
+    proxy_address               char(42)        not null,
+    implementation_address      char(42)        not null,
+    created_at                  timestamp not null default now(),
+    updated_at                  timestamp not null default now(),
+    unique (proxy_address, implementation_address)
+);

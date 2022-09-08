@@ -8,6 +8,7 @@ import {
   AddressTransactionType,
   InternalTransaction,
   FilterEntry,
+  Contract,
 } from 'src/types'
 import {validator} from 'src/utils/validators/validators'
 import {
@@ -160,4 +161,71 @@ export async function getContractsByField(
   }
 
   return res
+}
+
+export async function getProxyImplementation(
+  shardID: ShardID,
+  contractAddress: Address
+): Promise<Contract> {
+  validator({
+    contractAddress: isAddress(contractAddress),
+  })
+
+  const findImplementation = async () => {
+    const store = stores[shardID]
+    const contractRows = await store.contract.getContractByField('address', contractAddress)
+    if (contractRows.length === 0) {
+      throw Error('Contract not found')
+    }
+    const [contract] = contractRows
+
+    // Implementation address is already known
+    if (contract.implementationAddress) {
+      const [impl] = await store.contract.getContractByField(
+        'address',
+        contract.implementationAddress
+      )
+      return impl
+    }
+    const internalTxs = await store.internalTransaction.getInternalTransactionsByField(
+      'transaction_hash',
+      contract.transactionHash
+    )
+    const delegateTx = internalTxs.find((tx) => tx.type === 'delegatecall')
+    if (delegateTx) {
+      const implContractRows = await store.contract.getContractByField('address', delegateTx.to)
+      if (implContractRows.length > 0) {
+        return implContractRows[0]
+      }
+    }
+    return null
+  }
+
+  const res = await withCache(
+    ['getProxyImplementation', arguments],
+    () => findImplementation(),
+    1000 * 60 * 60
+  )
+
+  return res
+}
+
+export async function assignProxyImplementation(
+  shardID: ShardID,
+  proxyAddress: Address,
+  implementationAddress: Address
+): Promise<any> {
+  const implContract = await getProxyImplementation(shardID, proxyAddress)
+  if (implContract) {
+    if (implContract.address === implementationAddress) {
+      return await stores[shardID].contract.assignProxyImplementation(
+        proxyAddress,
+        implementationAddress
+      )
+    } else {
+      throw Error('Implementation contract not found')
+    }
+  } else {
+    throw Error('Implementation contract not found')
+  }
 }
