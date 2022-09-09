@@ -174,28 +174,27 @@ export async function getProxyImplementation(
   const findImplementation = async () => {
     const store = stores[shardID]
     const contractRows = await store.contract.getContractByField('address', contractAddress)
-    if (contractRows.length === 0) {
-      throw Error('Contract not found')
-    }
-    const [contract] = contractRows
+    if (contractRows.length > 0) {
+      const [contract] = contractRows
 
-    // Implementation address is already known
-    if (contract.implementationAddress) {
-      const [impl] = await store.contract.getContractByField(
-        'address',
-        contract.implementationAddress
+      // Implementation address is already known
+      if (contract.implementationAddress) {
+        const [impl] = await store.contract.getContractByField(
+          'address',
+          contract.implementationAddress
+        )
+        return impl
+      }
+      const internalTxs = await store.internalTransaction.getInternalTransactionsByField(
+        'transaction_hash',
+        contract.transactionHash
       )
-      return impl
-    }
-    const internalTxs = await store.internalTransaction.getInternalTransactionsByField(
-      'transaction_hash',
-      contract.transactionHash
-    )
-    const delegateTx = internalTxs.find((tx) => tx.type === 'delegatecall')
-    if (delegateTx) {
-      const implContractRows = await store.contract.getContractByField('address', delegateTx.to)
-      if (implContractRows.length > 0) {
-        return implContractRows[0]
+      const delegateTx = internalTxs.find((tx) => tx.type === 'delegatecall')
+      if (delegateTx) {
+        const implContractRows = await store.contract.getContractByField('address', delegateTx.to)
+        if (implContractRows.length > 0) {
+          return implContractRows[0]
+        }
       }
     }
     return null
