@@ -221,10 +221,7 @@ export async function assignProxyImplementation(
         proxyAddress,
         implementationAddress
       )
-    } else {
-      throw Error('Implementation contract not found')
     }
-  } else {
-    throw Error('Implementation contract not found')
   }
+  throw Error('Implementation contract not found')
 }
