@@ -454,3 +454,26 @@ create table if not exists onewallet_metrics
     owners_count        bigint not null default (0),
     total_balance       numeric default (0)
 );
+
+do
+$$
+    begin
+        create type metrics_type as enum (
+            'wallets_count',
+            'transactions_count',
+            'average_fee'
+            );
+    exception
+        when duplicate_object then null;
+    end
+$$;
+
+create table if not exists metrics
+(
+    id                  serial primary key,
+    type                metrics_type,
+    date                varchar not null,
+    value               varchar not null,
+    created_at          timestamp default now(),
+    unique (type, date, value)
+);
