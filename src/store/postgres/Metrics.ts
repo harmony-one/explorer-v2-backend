@@ -51,35 +51,15 @@ export class PostgresStorageMetrics implements IStorageMetrics {
 
   updateWalletsCount = async (offsetFrom = 14, offsetTo = 0) => {
     const limit = Math.abs(offsetFrom - offsetTo)
-
-    // Select block number to faster filter transactions
-    let blockRows = await this.query(
-      `
-        SELECT "number"
-        FROM blocks
-        WHERE "timestamp" < date_trunc('day', now() - interval '${offsetFrom} day')
-        order by "number" desc
-        LIMIT 1`,
-      []
-    )
-    if (blockRows.length === 0) {
-      // Slower query - in case if blocks table doesn't contain data for older than 2 weeks
-      blockRows = await this.query(
-        `SELECT "number" FROM blocks WHERE "timestamp" > date_trunc('day', now() - interval '${offsetFrom} day')
-        ORDER BY "number" ASC LIMIT 1`,
-        []
-      )
-    }
-    const [{number: blockNumber}] = blockRows
     const rows = await this.query(
       `WITH base as (
               (SELECT date_trunc('day', "timestamp") as date, "from" as wallet_address
               FROM "transactions"
-              WHERE block_number >= $2)
+              WHERE "transactions"."timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day'))
               UNION
               (SELECT date_trunc('day', "timestamp") as date, "to" as wallet_address
               FROM "transactions"
-              WHERE block_number >= $2)
+              WHERE "transactions"."timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day'))
           ),
           daily as (
           select date, count(distinct(wallet_address)) as active_wallets
@@ -90,7 +70,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
           SELECT date, active_wallets as value FROM daily
           ORDER BY date DESC
           limit $1`,
-      [limit, blockNumber]
+      [limit]
     )
 
     if (rows.length > 0) {
