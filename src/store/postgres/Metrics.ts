@@ -1,6 +1,5 @@
 import {IStorageMetrics} from 'src/store/interface'
 import {Query} from 'src/store/postgres/types'
-import {fromSnakeToCamelResponse} from 'src/store/postgres/queryMapper'
 
 enum MetricsType {
   walletsCount = 'wallets_count',
@@ -15,30 +14,29 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     this.query = query
   }
 
-  getTransactionCount = async (limit = 14, direction = 'desc'): Promise<any[]> => {
+  getTransactionCount = async (limit = 14): Promise<any[]> => {
     const rows = await this.query(
-      `select date as timestamp, "value" as count from metrics
+      `select date as timestamp, "value" as count from metrics_daily
              where type = 'transactions_count'
-             order by id ${direction} limit $1;`,
+             order by date desc limit $1;`,
       [limit]
     )
     return rows.reverse()
   }
 
-  // last 14 days of funded addresses
-  getWalletsCount = async (limit: number): Promise<any[]> => {
+  getWalletsCount = async (limit = 14): Promise<any[]> => {
     const rows = await this.query(
-      `select date, "value" as count from metrics where type = 'wallets_count' order by id desc limit $1;`,
+      `select date, "value" as count from metrics_daily where type = 'wallets_count' order by date desc limit $1;`,
       [limit]
     )
     return rows.map((o: any) => ({date: o.date, count: o.count})).reverse()
   }
 
-  updateTransactionsCount = async (days: number) => {
+  updateTransactionsCount = async (offsetFrom = 14, offsetTo = 0) => {
     const rows = await this.query(
-      `select date_trunc('day', "timestamp") as date, count(1) from "transactions"
-             where "transactions"."timestamp" >= date_trunc('day', now() - interval '14 day')
-             and "transactions"."timestamp" < date_trunc('day', now() - interval '0 day')
+      `select date_trunc('day', "timestamp") as date, count(1) as value from "transactions"
+             where "transactions"."timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
+             and "transactions"."timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
              group by 1
              order by 1 desc
              limit 1000`,
@@ -89,7 +87,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
           WHERE date < date_trunc('day', now() - interval '${offsetTo} day')
           GROUP BY date
           )
-          SELECT date, active_wallets as count FROM daily
+          SELECT date, active_wallets as value FROM daily
           ORDER BY date DESC
           limit $1`,
       [limit, blockNumber]
@@ -101,10 +99,49 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     return rows
   }
 
-  private insertStats = (metricsType: MetricsType, rows: Array<{date: string; count: string}>) => {
+  updateAverageFee = async (offsetFrom = 14, offsetTo = 0) => {
+    const rows = await this.query(
+      `select date_trunc('day', "timestamp") as date, round(avg(gas * gas_price / power(10, 18))::numeric, 8) as value
+             from "transactions"
+             where "transactions"."timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
+             and "transactions"."timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
+             group by 1
+             order by 1 desc
+             limit 1000`,
+      []
+    )
+
+    if (rows.length > 0) {
+      await this.insertStats(MetricsType.averageFee, rows)
+    }
+    return rows
+  }
+
+  private updateErcContracts = async (tableName: 'erc20' | 'erc721' | 'erc1155') => {
+    await this.query(
+      `update ${tableName}
+      set transaction_count = t1.count
+      from (
+      select e.address, count(1) from ${tableName} e 
+      join transactions t on t.to = e.address
+      group by e.address
+      order by count(1) desc
+      ) as t1
+      where t1.address = ${tableName}.address`,
+      []
+    )
+  }
+
+  updateTopContracts = async () => {
+    await this.updateErcContracts('erc20')
+    await this.updateErcContracts('erc721')
+    await this.updateErcContracts('erc1155')
+  }
+
+  private insertStats = (metricsType: MetricsType, rows: Array<{date: string; value: string}>) => {
     const preparedRows = rows
       .reverse()
-      .map((row: any) => [row.date, row.count])
+      .map((row: any) => [row.date, row.value])
       .flat()
 
     // ($1, $2, $3), ($4, $5, $6), ...
@@ -114,7 +151,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
       .join(',')
 
     return this.query(
-      `insert into metrics (type, date, value)
+      `insert into metrics_daily (type, date, value)
             values ${multipleValues}
             on conflict (type, date, value) do nothing;`,
       [...preparedRows]

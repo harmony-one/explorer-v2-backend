@@ -468,7 +468,7 @@ $$
     end
 $$;
 
-create table if not exists metrics
+create table if not exists metrics_daily
 (
     id                  serial primary key,
     type                metrics_type,
