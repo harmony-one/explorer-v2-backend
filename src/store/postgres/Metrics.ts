@@ -1,11 +1,6 @@
 import {IStorageMetrics} from 'src/store/interface'
 import {Query} from 'src/store/postgres/types'
-
-enum MetricsType {
-  walletsCount = 'wallets_count',
-  transactionsCount = 'transactions_count',
-  averageFee = 'average_fee',
-}
+import {MetricsType} from 'src/types'
 
 export class PostgresStorageMetrics implements IStorageMetrics {
   query: Query
@@ -14,12 +9,14 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     this.query = query
   }
 
-  getTransactionCount = async (limit = 14): Promise<any[]> => {
+  getTransactionCount = async (offset = 0, limit = 14): Promise<any[]> => {
     const rows = await this.query(
       `select date as timestamp, "value" as count from metrics_daily
              where type = 'transactions_count'
-             order by date desc limit $1;`,
-      [limit]
+             order by date desc
+             offset $1
+             limit $2;`,
+      [offset, limit]
     )
     return rows.reverse()
   }
@@ -30,6 +27,19 @@ export class PostgresStorageMetrics implements IStorageMetrics {
       [limit]
     )
     return rows.map((o: any) => ({date: o.date, count: o.count})).reverse()
+  }
+
+  // TODO: remove getTransactionCount and getWalletsCount methods
+  getMetricsByType = async (type: MetricsType, offset = 0, limit = 14) => {
+    const rows = await this.query(
+      `select date, "value" from metrics_daily
+             where type = '${type}'
+             order by date desc
+             offset $1
+             limit $2;`,
+      [offset, limit]
+    )
+    return rows
   }
 
   updateTransactionsCount = async (offsetFrom = 14, offsetTo = 0) => {

@@ -6,7 +6,7 @@ export const verifyApiKey = (req: Request, res: Response, next: NextFunction) =>
   const {apiKey} = config.api.rest
 
   // If config api key is not empty, check api key in header
-  if (apiKey && headerApiKey === apiKey) {
+  if (!apiKey || (apiKey && headerApiKey === apiKey)) {
     next()
   } else {
     res.sendStatus(403)
