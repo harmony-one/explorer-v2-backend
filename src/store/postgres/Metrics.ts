@@ -45,7 +45,9 @@ export class PostgresStorageMetrics implements IStorageMetrics {
   updateTransactionsCount = async (offsetFrom = 14, offsetTo = 0) => {
     const rows = await this.query(
       `select date_trunc('day', "timestamp") as date, count(1) as value from "transactions"
-             where "transactions"."timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
+             where "transactions"."timestamp" >= date_trunc('day', now() - interval '${
+               offsetFrom + 1
+             } day')
              and "transactions"."timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
              group by 1
              order by 1 desc
@@ -65,11 +67,15 @@ export class PostgresStorageMetrics implements IStorageMetrics {
       `WITH base as (
               (SELECT date_trunc('day', "timestamp") as date, "from" as wallet_address
               FROM "transactions"
-              WHERE "transactions"."timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day'))
+              WHERE "transactions"."timestamp" >= date_trunc('day', now() - interval '${
+                offsetFrom + 1
+              } day'))
               UNION
               (SELECT date_trunc('day', "timestamp") as date, "to" as wallet_address
               FROM "transactions"
-              WHERE "transactions"."timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day'))
+              WHERE "transactions"."timestamp" >= date_trunc('day', now() - interval '${
+                offsetFrom + 1
+              } day'))
           ),
           daily as (
           select date, count(distinct(wallet_address)) as active_wallets
@@ -93,7 +99,9 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     const rows = await this.query(
       `select date_trunc('day', "timestamp") as date, round(avg(gas * gas_price / power(10, 18))::numeric, 8) as value
              from "transactions"
-             where "transactions"."timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
+             where "transactions"."timestamp" >= date_trunc('day', now() - interval '${
+               offsetFrom + 1
+             } day')
              and "transactions"."timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
              group by 1
              order by 1 desc
