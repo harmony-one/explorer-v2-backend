@@ -34,7 +34,7 @@ export async function getMetricsByType(
   validator({
     type: isOneOf(type, [...Object.values(MetricsType)]),
     offset: isOffset(offset),
-    limit: isLimit(limit, 1000),
+    limit: isLimit(limit, 2000),
   })
   return await withCache(
     ['getMetricsByType', arguments],
