@@ -461,7 +461,8 @@ $$
         create type metrics_type as enum (
             'wallets_count',
             'transactions_count',
-            'average_fee'
+            'average_fee',
+            'block_size'
             );
     exception
         when duplicate_object then null;
@@ -475,5 +476,5 @@ create table if not exists metrics_daily
     date                varchar not null,
     value               varchar not null,
     created_at          timestamp default now(),
-    unique (type, date, value)
+    unique (type, date)
 );
