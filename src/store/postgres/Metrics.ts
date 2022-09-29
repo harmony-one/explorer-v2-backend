@@ -69,18 +69,21 @@ export class PostgresStorageMetrics implements IStorageMetrics {
               FROM "transactions"
               WHERE "transactions"."timestamp" >= date_trunc('day', now() - interval '${
                 offsetFrom + 1
-              } day'))
+              } day')
+              AND "transactions"."timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
+              )
               UNION
               (SELECT date_trunc('day', "timestamp") as date, "to" as wallet_address
               FROM "transactions"
               WHERE "transactions"."timestamp" >= date_trunc('day', now() - interval '${
                 offsetFrom + 1
-              } day'))
+              } day')
+              AND "transactions"."timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
+              )
           ),
           daily as (
           select date, count(distinct(wallet_address)) as active_wallets
           from base
-          WHERE date < date_trunc('day', now() - interval '${offsetTo} day')
           GROUP BY date
           )
           SELECT date, active_wallets as value FROM daily
@@ -111,6 +114,23 @@ export class PostgresStorageMetrics implements IStorageMetrics {
 
     if (rows.length > 0) {
       await this.insertStats(MetricsType.averageFee, rows)
+    }
+    return rows
+  }
+
+  updateBlockSize = async (offsetFrom = 14, offsetTo = 0) => {
+    const rows = await this.query(
+      `select date_trunc('day', "timestamp") as date, round(avg(size)) as value from "blocks"
+             where "timestamp" >= date_trunc('day', now() - interval '${offsetFrom + 1} day')
+             and "timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
+             group by 1
+             order by 1 desc
+             limit 1000`,
+      []
+    )
+
+    if (rows.length > 0) {
+      await this.insertStats(MetricsType.blockSize, rows)
     }
     return rows
   }
@@ -151,7 +171,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     return this.query(
       `insert into metrics_daily (type, date, value)
             values ${multipleValues}
-            on conflict (type, date, value) do nothing;`,
+            on conflict (type, date) do nothing;`,
       [...preparedRows]
     )
   }

@@ -32,7 +32,7 @@ export async function getMetricsByType(
   limit = DefaultLimit
 ): Promise<any | null> {
   validator({
-    type: isOneOf(type, ['wallets_count', 'transactions_count', 'average_fee']),
+    type: isOneOf(type, [...Object.values(MetricsType)]),
     offset: isOffset(offset),
     limit: isLimit(limit, 1000),
   })
