@@ -37,7 +37,7 @@ const runLoop = async () => {
 //       const to = offset + i * batchDays
 //       const timeStart = Date.now()
 //       console.log('Index metrics: i', i, 'from', from, 'to', to)
-//       const rows = await stores[0].metrics.updateBlockSize(from, to)
+//       const rows = await stores[0].metrics.updateWalletsCount(from, to)
 //       console.log('Rows', rows)
 //       console.log('Result:', rows.length, Math.round((Date.now() - timeStart) / 1000), 's')
 //       if (rows.length === 0) {
