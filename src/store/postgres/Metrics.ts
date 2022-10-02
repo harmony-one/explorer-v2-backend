@@ -44,11 +44,14 @@ export class PostgresStorageMetrics implements IStorageMetrics {
 
   updateTransactionsCount = async (offsetFrom = 14, offsetTo = 0) => {
     const rows = await this.query(
-      `select date_trunc('day', "timestamp") as date, count(1) as value from "transactions"
-             where "transactions"."timestamp" >= date_trunc('day', now() - interval '${
-               offsetFrom + 1
-             } day')
-             and "transactions"."timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
+      `select date_trunc('day', "timestamp") as date, count(1) as value
+             from (
+              select timestamp from "transactions"
+              union all
+              select timestamp from "staking_transactions"
+             ) t1
+             where "timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
+             and "timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
              group by 1
              order by 1 desc
              limit 1000`,
@@ -65,21 +68,18 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     const limit = Math.abs(offsetFrom - offsetTo)
     const rows = await this.query(
       `WITH base as (
-              (SELECT date_trunc('day', "timestamp") as date, "from" as wallet_address
-              FROM "transactions"
-              WHERE "transactions"."timestamp" >= date_trunc('day', now() - interval '${
-                offsetFrom + 1
-              } day')
-              AND "transactions"."timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
-              )
-              UNION
-              (SELECT date_trunc('day', "timestamp") as date, "to" as wallet_address
-              FROM "transactions"
-              WHERE "transactions"."timestamp" >= date_trunc('day', now() - interval '${
-                offsetFrom + 1
-              } day')
-              AND "transactions"."timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
-              )
+              SELECT date_trunc('day', "timestamp") as date, wallet_address
+              FROM (
+                  select timestamp, "from" as wallet_address from "transactions"
+                  union all
+                  select timestamp, "to" as wallet_address from "transactions"
+                  union all
+                  select timestamp, "from" as wallet_address from "staking_transactions"
+                  union all
+                  select timestamp, "to" as wallet_address from "staking_transactions"
+                 ) t1
+              WHERE "timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
+              AND "timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
           ),
           daily as (
           select date, count(distinct(wallet_address)) as active_wallets
@@ -101,11 +101,13 @@ export class PostgresStorageMetrics implements IStorageMetrics {
   updateAverageFee = async (offsetFrom = 14, offsetTo = 0) => {
     const rows = await this.query(
       `select date_trunc('day', "timestamp") as date, round(avg(gas * gas_price / power(10, 18))::numeric, 8) as value
-             from "transactions"
-             where "transactions"."timestamp" >= date_trunc('day', now() - interval '${
-               offsetFrom + 1
-             } day')
-             and "transactions"."timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
+             from (
+              select timestamp, gas, gas_price from "transactions"
+              union all
+              select timestamp, gas, gas_price from "staking_transactions"
+             ) t1
+             where "timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
+             and "timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
              group by 1
              order by 1 desc
              limit 1000`,
