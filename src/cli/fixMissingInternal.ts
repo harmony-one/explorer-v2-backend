@@ -9,6 +9,10 @@ import {internalTransactionsIgnoreListFilter} from 'src/indexer/indexer/ignoreLi
 
 const l = logger(module)
 
+// Setup values before run script
+const BLOCK_FROM = 1
+const BLOCK_TO = 2
+
 const getBlocks = (from: BlockNumber, to: BlockNumber) => {
   return RPCClient.getBlocks(0, from, to)
 }
@@ -51,8 +55,8 @@ const addTraceBlocks = async (blocks: Block[], blocksInternalTxs: InternalTransa
 const fixMissingInternal = async (shardID: ShardID) => {
   const l = logger(module, `shard${shardID}`)
 
-  const start = 31643680
-  const end = 32165000
+  const start = BLOCK_FROM
+  const end = BLOCK_TO
   const allInternalTxs: InternalTransaction[] = []
 
   const batchSize = 1000
