@@ -35,7 +35,9 @@ export async function getApi(req: Request, res: Response, next: NextFunction) {
           return res.send(wrapErrorResponse('Error! Missing Or invalid Action name'))
       }
     } catch (e) {
-      return res.send(wrapErrorResponse(e.message || 'Unknown error'))
+      return res.send(
+        wrapErrorResponse('Error! Cannot get proxy data, check service rpc configuration')
+      )
     }
   }
 
