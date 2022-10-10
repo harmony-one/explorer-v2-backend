@@ -478,3 +478,29 @@ create table if not exists metrics_daily
     created_at          timestamp default now(),
     unique (type, date)
 );
+
+do
+$$
+    begin
+        create type metrics_top_type as enum (
+            'top_one_sender',
+            'top_one_receiver',
+            'top_txs_count_sent',
+            'top_txs_count_received'
+            );
+    exception
+        when duplicate_object then null;
+    end
+$$;
+
+create table if not exists metrics_top
+(
+    id                  serial primary key,
+    type                metrics_top_type,
+    date                timestamp not null,
+    address             char(42) not null,
+    value               numeric,
+    share               numeric  default (0),
+    created_at          timestamp default now(),
+    unique (type, date, address)
+);
