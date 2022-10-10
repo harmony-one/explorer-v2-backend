@@ -26,6 +26,7 @@ import {rpcRouter} from 'src/api/rest/routes/rpcRouter'
 import {transport} from 'src/api/rest/transport'
 import prometheusRegister from 'src/api/prometheus'
 import {verifyApiKey} from 'src/api/middlewares/verifyApiKey'
+import {apiRouter} from 'src/api/rest/routes/api'
 const l = logger(module)
 
 export const RESTServer = async () => {
@@ -91,6 +92,7 @@ export const RESTServer = async () => {
     },
     transport
   )
+  api.use('/api', apiRouter, transport)
 
   let server: Server
 

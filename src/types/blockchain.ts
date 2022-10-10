@@ -16,6 +16,7 @@ export type RPCHarmonyMethod =
   | 'hmyv2_getTransactionReceipt'
   | 'hmy_getBalance'
   | 'hmyv2_getTransactionsCount'
+  | 'hmy_gasPrice'
 
 export type ShardID = 0 | 1 | 2 | 3
 
