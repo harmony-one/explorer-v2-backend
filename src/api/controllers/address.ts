@@ -203,7 +203,7 @@ export async function getProxyImplementation(
   const res = await withCache(
     ['getProxyImplementation', arguments],
     () => findImplementation(),
-    1000 * 60 * 60
+    1000 * 60
   )
 
   return res
