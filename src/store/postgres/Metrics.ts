@@ -157,15 +157,16 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     type: MetricsTopType.topOneSender | MetricsTopType.topOneReceiver,
     offsetFrom = 1,
     offsetTo = 0,
-    limit = 10
+    limit = 30
   ) => {
     const columnName = type === MetricsTopType.topOneSender ? 'from' : 'to' // Sender or receiver
+    const period = Math.abs(offsetFrom - offsetTo)
 
     // Don't count transfers to yourself
     const rows = await this.query(
       `
               with base as (
-               select timestamp, "${columnName}" as address, value from "transactions"
+               select "${columnName}" as address, value from "transactions"
                where "timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
                and "timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
                and "from" != "to"
@@ -173,16 +174,19 @@ export class PostgresStorageMetrics implements IStorageMetrics {
               base_total as (
                 select sum(value) as total from base
               )
-              select date_trunc('day', "timestamp") as date, address, sum(value) as value, total, round((sum(value) / total) * 100, 4) as share
+              select address,
+              total, sum(value) as value,
+              round((sum(value) / total) * 100, 4) as share,
+              rank () over (order by sum(value) desc) as rank
               from base
               cross join base_total
-              group by 1, 2, total
+              group by 1, 2
               order by value desc
               limit $1`,
       [limit]
     )
     if (rows.length > 0) {
-      await this.insertTopStats(type, rows)
+      await this.insertTopStats(type, period, rows)
     }
     return rows
   }
@@ -228,26 +232,35 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     )
   }
 
-  private insertTopStats = (
+  private insertTopStats = async (
     type: MetricsTopType,
-    rows: Array<{date: string; address: string; value: string; share: string}>
+    period: number,
+    rows: Array<{address: string; value: string; share: string}>
   ) => {
-    const preparedRows = rows
-      // .reverse()
-      .map((r: any) => [r.date, r.address, r.value, r.share])
-      .flat()
+    const preparedRows = rows.map((r: any) => [r.address, r.value, r.share, r.rank]).flat()
 
     // ($1, $2, $3, $4), ($5, $6, $7, $8), ...
     const multipleValues = Array(rows.length)
       .fill(null)
-      .map((_, i) => `('${type}', $${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`)
+      .map(
+        (_, i) =>
+          `('${type}', ${period}, $${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`
+      )
       .join(',')
 
-    return this.query(
-      `insert into metrics_top (type, date, address, value, share)
-            values ${multipleValues}
-            on conflict (type, date, address) do nothing;`,
-      [...preparedRows]
-    )
+    try {
+      await this.query('BEGIN', [])
+      await this.query(`delete from metrics_top where type = '${type}' and period = ${period}`, [])
+      await this.query(
+        `insert into metrics_top (type, period, address, value, share, rank)
+            values ${multipleValues}`,
+        [...preparedRows]
+      )
+      await this.query('COMMIT', [])
+      return rows
+    } catch (e) {
+      await this.query('ROLLBACK', [])
+      return []
+    }
   }
 }

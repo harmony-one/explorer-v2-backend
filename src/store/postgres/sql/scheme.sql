@@ -495,12 +495,12 @@ $$;
 
 create table if not exists metrics_top
 (
-    id                  serial primary key,
     type                metrics_top_type,
-    date                timestamp not null,
+    period              smallint not null,
     address             char(42) not null,
     value               numeric,
-    share               numeric  default (0),
-    created_at          timestamp default now(),
-    unique (type, date, address)
+    rank                smallint not null,
+    share               real default (0),
+    updated_at          timestamp default now(),
+    unique (type, period, address)
 );
