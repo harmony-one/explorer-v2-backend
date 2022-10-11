@@ -115,9 +115,9 @@ export class BlockIndexer {
               return Promise.resolve(block)
             }
 
-            if (!block.transactions.reduce((a, b) => a || b.input.length > 3, false)) {
-              return Promise.resolve(block)
-            }
+            // if (!block.transactions.reduce((a, b) => a || b.input.length > 3, false)) {
+            //   return Promise.resolve(block)
+            // }
 
             const internalTxs = blocksInternalTxs[index]
 

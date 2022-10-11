@@ -1,11 +1,6 @@
 import {IStorageMetrics} from 'src/store/interface'
 import {Query} from 'src/store/postgres/types'
-import {fromSnakeToCamelResponse} from 'src/store/postgres/queryMapper'
-
-enum StatsTable {
-  wallets = 'wallets_count',
-  transactions = 'transactions_count',
-}
+import {MetricsType} from 'src/types'
 
 export class PostgresStorageMetrics implements IStorageMetrics {
   query: Query
@@ -14,28 +9,49 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     this.query = query
   }
 
-  getTransactionCount = async (numberOfDays: number): Promise<any[]> => {
+  getTransactionCount = async (offset = 0, limit = 14): Promise<any[]> => {
     const rows = await this.query(
-      `select date_string as timestamp, "count" from transactions_count order by id desc limit $1;`,
-      [numberOfDays]
+      `select date as timestamp, "value" as count from metrics_daily
+             where type = 'transactions_count'
+             order by date desc
+             offset $1
+             limit $2;`,
+      [offset, limit]
     )
     return rows.reverse()
   }
 
-  // last 14 days of funded addresses
-  getWalletsCount = async (numberOfDays: number): Promise<any[]> => {
+  getWalletsCount = async (limit = 14): Promise<any[]> => {
     const rows = await this.query(
-      `select date_string, "count" from wallets_count order by id desc limit $1;`,
-      [numberOfDays]
+      `select date, "value" as count from metrics_daily where type = 'wallets_count' order by date desc limit $1;`,
+      [limit]
     )
-    return rows.map((o: any) => ({date: o.date_string, count: o.count})).reverse()
+    return rows.map((o: any) => ({date: o.date, count: o.count})).reverse()
   }
 
-  updateTransactionsCount = async (numberOfDays: number) => {
+  // TODO: remove getTransactionCount and getWalletsCount methods
+  getMetricsByType = async (type: MetricsType, offset = 0, limit = 14) => {
     const rows = await this.query(
-      `select date_trunc('day', "timestamp") as date, count(1) from "transactions"
-             where "transactions"."timestamp" >= date_trunc('day', now() - interval '14 day')
-             and "transactions"."timestamp" < date_trunc('day', CURRENT_DATE)
+      `select date, "value" from metrics_daily
+             where type = '${type}'
+             order by date desc
+             offset $1
+             limit $2;`,
+      [offset, limit]
+    )
+    return rows
+  }
+
+  updateTransactionsCount = async (offsetFrom = 14, offsetTo = 0) => {
+    const rows = await this.query(
+      `select date_trunc('day', "timestamp") as date, count(1) as value
+             from (
+              select timestamp from "transactions"
+              union all
+              select timestamp from "staking_transactions"
+             ) t1
+             where "timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
+             and "timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
              group by 1
              order by 1 desc
              limit 1000`,
@@ -43,71 +59,121 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     )
 
     if (rows.length > 0) {
-      await this.insertStats(StatsTable.transactions, rows)
+      await this.insertStats(MetricsType.transactionsCount, rows)
     }
+    return rows
   }
 
-  updateWalletsCount = async (numberOfDays: number) => {
-    // Select block number to faster filter transactions
-    let blockRows = await this.query(
-      `
-        SELECT "number"
-        FROM blocks
-        WHERE "timestamp" < date_trunc('day', now() - interval '14 day')
-        order by "number" desc
-        LIMIT 1`,
-      []
-    )
-    if (blockRows.length === 0) {
-      // Slower query - in case if blocks table doesn't contain data for older than 2 weeks
-      blockRows = await this.query(
-        `SELECT "number" FROM blocks WHERE "timestamp" > date_trunc('day', now() - interval '14 day')
-        ORDER BY "number" ASC LIMIT 1`,
-        []
-      )
-    }
-    const [{number: blockNumber}] = blockRows
+  updateWalletsCount = async (offsetFrom = 14, offsetTo = 0) => {
+    const limit = Math.abs(offsetFrom - offsetTo)
     const rows = await this.query(
       `WITH base as (
-              (SELECT date_trunc('day', "timestamp") as date, "from" as wallet_address
-              FROM "transactions"
-              WHERE block_number >= $2)
-              UNION
-              (SELECT date_trunc('day', "timestamp") as date, "to" as wallet_address
-              FROM "transactions"
-              WHERE block_number >= $2)
+              SELECT date_trunc('day', "timestamp") as date, wallet_address
+              FROM (
+                  select timestamp, "from" as wallet_address from "transactions"
+                  union all
+                  select timestamp, "to" as wallet_address from "transactions"
+                  union all
+                  select timestamp, "from" as wallet_address from "staking_transactions"
+                  union all
+                  select timestamp, "to" as wallet_address from "staking_transactions"
+                 ) t1
+              WHERE "timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
+              AND "timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
           ),
           daily as (
           select date, count(distinct(wallet_address)) as active_wallets
           from base
-          WHERE date < date_trunc('day', CURRENT_DATE)
           GROUP BY date
           )
-          SELECT date, active_wallets as count FROM daily
+          SELECT date, active_wallets as value FROM daily
           ORDER BY date DESC
           limit $1`,
-      [numberOfDays, blockNumber]
+      [limit]
     )
 
     if (rows.length > 0) {
-      await this.insertStats(StatsTable.wallets, rows)
+      await this.insertStats(MetricsType.walletsCount, rows)
     }
+    return rows
   }
 
-  private insertStats = (tableName: StatsTable, rows: Array<{date: string; count: string}>) => {
+  updateAverageFee = async (offsetFrom = 14, offsetTo = 0) => {
+    const rows = await this.query(
+      `select date_trunc('day', "timestamp") as date, round(avg(gas * gas_price / power(10, 18))::numeric, 8) as value
+             from (
+              select timestamp, gas, gas_price from "transactions"
+              union all
+              select timestamp, gas, gas_price from "staking_transactions"
+             ) t1
+             where "timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
+             and "timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
+             group by 1
+             order by 1 desc
+             limit 1000`,
+      []
+    )
+
+    if (rows.length > 0) {
+      await this.insertStats(MetricsType.averageFee, rows)
+    }
+    return rows
+  }
+
+  updateBlockSize = async (offsetFrom = 14, offsetTo = 0) => {
+    const rows = await this.query(
+      `select date_trunc('day', "timestamp") as date, round(avg(size)) as value from "blocks"
+             where "timestamp" >= date_trunc('day', now() - interval '${offsetFrom + 1} day')
+             and "timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
+             group by 1
+             order by 1 desc
+             limit 1000`,
+      []
+    )
+
+    if (rows.length > 0) {
+      await this.insertStats(MetricsType.blockSize, rows)
+    }
+    return rows
+  }
+
+  private updateErcContracts = async (tableName: 'erc20' | 'erc721' | 'erc1155') => {
+    await this.query(
+      `update ${tableName}
+      set transaction_count = t1.count
+      from (
+      select e.address, count(1) from ${tableName} e 
+      join transactions t on t.to = e.address
+      group by e.address
+      order by count(1) desc
+      ) as t1
+      where t1.address = ${tableName}.address`,
+      []
+    )
+  }
+
+  updateTopContracts = async () => {
+    await this.updateErcContracts('erc20')
+    await this.updateErcContracts('erc721')
+    await this.updateErcContracts('erc1155')
+  }
+
+  private insertStats = (metricsType: MetricsType, rows: Array<{date: string; value: string}>) => {
     const preparedRows = rows
       .reverse()
-      .map((row: any) => [row.count, row.date])
+      .map((row: any) => [row.date, row.value])
       .flat()
 
+    // ($1, $2, $3), ($4, $5, $6), ...
     const multipleValues = Array(rows.length)
       .fill(null)
-      .map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`) // ($1, $2), ($3, $4), ...
+      .map((_, i) => `('${metricsType}', $${i * 2 + 1}, $${i * 2 + 2})`)
       .join(',')
 
     return this.query(
-      `insert into ${tableName} (count, date_string)
-            values ${multipleValues} on conflict (date_string) do nothing;`,
+      `insert into metrics_daily (type, date, value)
+            values ${multipleValues}
+            on conflict (type, date) do nothing;`,
       [...preparedRows]
     )
   }

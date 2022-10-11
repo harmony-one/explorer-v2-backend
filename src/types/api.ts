@@ -67,3 +67,10 @@ export interface EthGetLogFilter {
   topics?: string[]
   blockhash?: string
 }
+
+export enum MetricsType {
+  walletsCount = 'wallets_count',
+  transactionsCount = 'transactions_count',
+  averageFee = 'average_fee',
+  blockSize = 'block_size',
+}

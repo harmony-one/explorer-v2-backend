@@ -11,7 +11,7 @@ import {Query} from 'src/store/postgres/types'
 import {fromSnakeToCamelResponse} from 'src/store/postgres/queryMapper'
 import {buildSQLQuery} from 'src/store/postgres/filters'
 
-const subQueryLimit = 10000
+const subQueryLimit = 100000
 
 export class PostgresStorageAddress implements IStorageAddress {
   query: Query
