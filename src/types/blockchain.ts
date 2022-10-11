@@ -296,6 +296,7 @@ export type Contract = {
   solidityVersion?: string
   meta?: string
   bytecode: string
+  implementationAddress?: string
 }
 
 export type IERC20 = {
