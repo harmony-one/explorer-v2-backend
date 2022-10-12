@@ -30,6 +30,17 @@ const runLoop = async () => {
   }
 }
 
+const updateTopDailyMetrics = async () => {
+  const periods = [1, 3, 7] // Top metrics for each 1, 3, 7 last days period
+  for (let i = 0; i < periods.length; i++) {
+    const period = periods[i]
+    await stores[0].metrics.updateTopOne(MetricsTopType.topOneSender, period)
+    await stores[0].metrics.updateTopOne(MetricsTopType.topOneReceiver, period)
+    await stores[0].metrics.updateTopTxsCount(MetricsTopType.topTxsCountSent, period)
+    await stores[0].metrics.updateTopTxsCount(MetricsTopType.topTxsCountReceived, period)
+  }
+}
+
 // const runDailyMetricsIndexer = async () => {
 //   try {
 //     const offset = 0 // manually set offset to continue interrupted migration
@@ -50,19 +61,3 @@ const runLoop = async () => {
 //     console.log('Error on metrics batch update', e)
 //   }
 // }
-
-const updateTopDailyMetrics = async () => {
-  try {
-    const periods = [1, 3, 7] // Top metrics for each 1, 3, 7 last days period
-    for (let i = 0; i < periods.length; i++) {
-      const period = periods[i]
-      const timeStart = Date.now()
-      await stores[0].metrics.updateTopOne(MetricsTopType.topOneSender, period)
-      await stores[0].metrics.updateTopOne(MetricsTopType.topOneReceiver, period)
-      console.log('Results :', period, Math.round((Date.now() - timeStart) / 1000), 's')
-    }
-    console.log('Stop top metrics')
-  } catch (e) {
-    console.log('Error on top metrics batch update', e)
-  }
-}

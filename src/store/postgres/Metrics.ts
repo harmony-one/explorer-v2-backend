@@ -42,18 +42,15 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     return rows
   }
 
-  getTopMetricsByType = async (type: MetricsTopType, daysFrom = 1, daysTo = 0) => {
+  getTopMetricsByType = async (type: MetricsTopType, period = 1, limit = 10) => {
     let rows = []
     rows = await this.query(
-      `select address, sum(value) as value, round(avg(share), 4) as share
-            from metrics_top 
-            where type = '${type}'
-            and "date" >= date_trunc('day', now() - interval '${daysFrom} day')
-            and "date" < date_trunc('day', now() - interval '${daysTo} day')
-            group by address
-            order by sum(value) desc
-            limit 10`,
-      [type]
+      `select * from metrics_top
+               where type = $1 and period = $2
+               order by rank desc
+               limit $3
+               `,
+      [type, period, limit]
     )
     return rows
   }
@@ -157,7 +154,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     type: MetricsTopType.topOneSender | MetricsTopType.topOneReceiver,
     offsetFrom = 1,
     offsetTo = 0,
-    limit = 30
+    limit = 100
   ) => {
     const columnName = type === MetricsTopType.topOneSender ? 'from' : 'to' // Sender or receiver
     const period = Math.abs(offsetFrom - offsetTo)
@@ -177,7 +174,46 @@ export class PostgresStorageMetrics implements IStorageMetrics {
               select address,
               total, sum(value) as value,
               round((sum(value) / total) * 100, 4) as share,
-              rank () over (order by sum(value) desc) as rank
+              rank () over (order by sum(value) desc, address desc) as rank
+              from base
+              cross join base_total
+              group by 1, 2
+              order by value desc
+              limit $1`,
+      [limit]
+    )
+    if (rows.length > 0) {
+      await this.insertTopStats(type, period, rows)
+    }
+    return rows
+  }
+
+  updateTopTxsCount = async (
+    type: MetricsTopType.topTxsCountSent | MetricsTopType.topTxsCountReceived,
+    offsetFrom = 1,
+    offsetTo = 0,
+    limit = 100
+  ) => {
+    const columnName = type === MetricsTopType.topTxsCountSent ? 'from' : 'to' // Sender or receiver
+    const period = Math.abs(offsetFrom - offsetTo)
+
+    // Don't count transfers to yourself
+    const rows = await this.query(
+      `
+              with base as (
+               select "${columnName}" as address, value from "transactions"
+               where "timestamp" >= date_trunc('day', now() - interval '1 day')
+               and "timestamp" < date_trunc('day', now() - interval '0 day')
+               and "from" != "to"
+              ),
+              base_total as (
+                select count(*)::decimal as total from base
+              )
+              select address,
+              total,
+              count(*) as value,
+              round((count(*) /  total * 100), 4) as share,
+              RANK () OVER (ORDER BY count(*) desc, address desc) as rank
               from base
               cross join base_total
               group by 1, 2
