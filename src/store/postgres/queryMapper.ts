@@ -40,6 +40,7 @@ export const mapNaming: Record<string, string> = {
   token_uri: 'tokenURI',
   extra_mark: 'extraMark',
   event_type: 'eventType',
+  updated_at: 'updatedAt',
 }
 
 export const mapNamingReverse: Record<string, string> = Object.keys(mapNaming).reduce((a, k) => {

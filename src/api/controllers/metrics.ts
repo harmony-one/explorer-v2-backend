@@ -39,13 +39,13 @@ export async function getMetricsByType(
   return await withCache(
     ['getMetricsByType', arguments],
     () => stores[0].metrics.getMetricsByType(type, offset, limit),
-    1000 * 60 * 60 * 1
+    1000 * 60 * 10
   )
 }
 
 export async function getTopMetricsByType(type: MetricsTopType, period = 1): Promise<any | null> {
   validator({
-    type: isOneOf(type, [...Object.values(MetricsDailyType)]),
+    type: isOneOf(type, [...Object.values(MetricsTopType)]),
     period: isOneOf(period, [1, 3, 7]),
   })
   return await withCache(

@@ -1,6 +1,7 @@
 import {IStorageMetrics} from 'src/store/interface'
 import {Query} from 'src/store/postgres/types'
 import {MetricsDailyType, MetricsTopType} from 'src/types'
+import {fromSnakeToCamelResponse} from 'src/store/postgres/queryMapper'
 
 export class PostgresStorageMetrics implements IStorageMetrics {
   query: Query
@@ -47,17 +48,17 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     rows = await this.query(
       `select * from metrics_top
                where type = $1 and period = $2
-               order by rank desc
+               order by rank asc
                limit $3
                `,
       [type, period, limit]
     )
-    return rows
+    return rows.map(fromSnakeToCamelResponse)
   }
 
   updateTransactionsCount = async (offsetFrom = 14, offsetTo = 0) => {
     const rows = await this.query(
-      `select date_trunc('day', "timestamp") as date, count(1) as value
+      `select to_date("timestamp"::varchar, 'YYYY-MM-DD')::varchar as date, count(1) as value
              from (
               select timestamp from "transactions"
               union all
@@ -81,7 +82,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     const limit = Math.abs(offsetFrom - offsetTo)
     const rows = await this.query(
       `WITH base as (
-              SELECT date_trunc('day', "timestamp") as date, wallet_address
+              SELECT to_date("timestamp"::varchar, 'YYYY-MM-DD')::varchar as date, wallet_address
               FROM (
                   select timestamp, "from" as wallet_address from "transactions"
                   union all
@@ -113,7 +114,8 @@ export class PostgresStorageMetrics implements IStorageMetrics {
 
   updateAverageFee = async (offsetFrom = 14, offsetTo = 0) => {
     const rows = await this.query(
-      `select date_trunc('day', "timestamp") as date, round(avg(gas * gas_price / power(10, 18))::numeric, 8) as value
+      `select to_date("timestamp"::varchar, 'YYYY-MM-DD')::varchar as date,
+             round(avg(gas * gas_price / power(10, 18))::numeric, 8) as value
              from (
               select timestamp, gas, gas_price from "transactions"
               union all
@@ -135,7 +137,8 @@ export class PostgresStorageMetrics implements IStorageMetrics {
 
   updateBlockSize = async (offsetFrom = 14, offsetTo = 0) => {
     const rows = await this.query(
-      `select date_trunc('day', "timestamp") as date, round(avg(size)) as value from "blocks"
+      `select to_date("timestamp"::varchar, 'YYYY-MM-DD')::varchar as date,
+             round(avg(size)) as value from "blocks"
              where "timestamp" >= date_trunc('day', now() - interval '${offsetFrom + 1} day')
              and "timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
              group by 1
@@ -154,7 +157,7 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     type: MetricsTopType.topOneSender | MetricsTopType.topOneReceiver,
     offsetFrom = 1,
     offsetTo = 0,
-    limit = 100
+    limit = 30
   ) => {
     const columnName = type === MetricsTopType.topOneSender ? 'from' : 'to' // Sender or receiver
     const period = Math.abs(offsetFrom - offsetTo)
@@ -190,19 +193,17 @@ export class PostgresStorageMetrics implements IStorageMetrics {
 
   updateTopTxsCount = async (
     type: MetricsTopType.topTxsCountSent | MetricsTopType.topTxsCountReceived,
-    offsetFrom = 1,
-    offsetTo = 0,
+    period: number,
     limit = 100
   ) => {
     const columnName = type === MetricsTopType.topTxsCountSent ? 'from' : 'to' // Sender or receiver
-    const period = Math.abs(offsetFrom - offsetTo)
 
     // Don't count transfers to yourself
     const rows = await this.query(
       `
               with base as (
                select "${columnName}" as address, value from "transactions"
-               where "timestamp" >= date_trunc('day', now() - interval '1 day')
+               where "timestamp" >= date_trunc('day', now() - interval '${period} day')
                and "timestamp" < date_trunc('day', now() - interval '0 day')
                and "from" != "to"
               ),
@@ -240,12 +241,6 @@ export class PostgresStorageMetrics implements IStorageMetrics {
       where t1.address = ${tableName}.address`,
       []
     )
-  }
-
-  updateTopContracts = async () => {
-    await this.updateErcContracts('erc20')
-    await this.updateErcContracts('erc721')
-    await this.updateErcContracts('erc1155')
   }
 
   private insertStats = (type: MetricsDailyType, rows: Array<{date: string; value: string}>) => {

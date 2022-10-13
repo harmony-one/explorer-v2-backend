@@ -7,8 +7,7 @@ const interval = 1000 * 60 * 60 * 4
 
 export const statsIndexer = () => {
   l.info('Metrics indexer starting...')
-  // runLoop()
-  updateTopDailyMetrics()
+  runLoop()
 }
 
 const runLoop = async () => {
