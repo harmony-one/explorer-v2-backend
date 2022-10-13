@@ -34,8 +34,13 @@ export class PostgresStorageContract implements IStorageContract {
   getContractByField = async (
     field: ContractQueryField,
     value: ContractQueryValue
-  ): Promise<Transaction[]> => {
-    const res = await this.query(`select * from contracts where ${field}=$1;`, [value])
+  ): Promise<Contract[]> => {
+    const res = await this.query(
+      `select contracts.*, cp.implementation_address from contracts
+            left join contracts_proxy cp on cp.proxy_address = address
+            where contracts.${field}=$1;`,
+      [value]
+    )
     return res.map(fromSnakeToCamelResponse)
   }
 
@@ -92,5 +97,17 @@ export class PostgresStorageContract implements IStorageContract {
             on conflict do nothing;`,
       paramsList
     )
+  }
+
+  assignProxyImplementation = async (contractAddress: string, implAddress: string) => {
+    await this.query(
+      `
+            INSERT INTO contracts_proxy (proxy_address, implementation_address)
+            VALUES ($1, $2)
+            ON CONFLICT (proxy_address, implementation_address) DO UPDATE
+            SET updated_at = now()`,
+      [contractAddress, implAddress]
+    )
+    return this.getContractByField('address', contractAddress)
   }
 }

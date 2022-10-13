@@ -479,6 +479,15 @@ create table if not exists metrics_daily
     unique (type, date)
 );
 
+create table if not exists contracts_proxy
+(
+    proxy_address               char(42)        not null,
+    implementation_address      char(42)        not null,
+    created_at                  timestamp not null default now(),
+    updated_at                  timestamp not null default now(),
+    unique (proxy_address, implementation_address)
+);
+
 do
 $$
     begin

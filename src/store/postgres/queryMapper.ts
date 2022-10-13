@@ -40,6 +40,7 @@ export const mapNaming: Record<string, string> = {
   token_uri: 'tokenURI',
   extra_mark: 'extraMark',
   event_type: 'eventType',
+  implementation_address: 'implementationAddress',
   updated_at: 'updatedAt',
 }
 
