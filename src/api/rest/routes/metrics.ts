@@ -1,7 +1,7 @@
 import {Response, Request, Router, NextFunction} from 'express'
 import * as controllers from 'src/api/controllers'
 import {catchAsync} from 'src/api/rest/utils'
-import {MetricsType} from 'src/types'
+import {MetricsDailyType} from 'src/types'
 
 export const metricsRouter = Router({mergeParams: true})
 
@@ -31,6 +31,10 @@ export async function getMetricsByType(req: Request, res: Response, next: NextFu
     offset: (+offset! as number) || 0,
     limit: (+limit! as number) || 14,
   }
-  const data = await controllers.getMetricsByType(type as MetricsType, filter.offset, filter.limit)
+  const data = await controllers.getMetricsByType(
+    type as MetricsDailyType,
+    filter.offset,
+    filter.limit
+  )
   next(data)
 }

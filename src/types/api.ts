@@ -68,9 +68,16 @@ export interface EthGetLogFilter {
   blockhash?: string
 }
 
-export enum MetricsType {
+export enum MetricsDailyType {
   walletsCount = 'wallets_count',
   transactionsCount = 'transactions_count',
   averageFee = 'average_fee',
   blockSize = 'block_size',
+}
+
+export enum MetricsTopType {
+  topOneSender = 'top_one_sender',
+  topOneReceiver = 'top_one_receiver',
+  topTxsCountSent = 'top_txs_count_sent',
+  topTxsCountReceived = 'top_txs_count_received',
 }

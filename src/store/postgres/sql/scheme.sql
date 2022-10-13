@@ -487,3 +487,29 @@ create table if not exists contracts_proxy
     updated_at                  timestamp not null default now(),
     unique (proxy_address, implementation_address)
 );
+
+do
+$$
+    begin
+        create type metrics_top_type as enum (
+            'top_one_sender',
+            'top_one_receiver',
+            'top_txs_count_sent',
+            'top_txs_count_received'
+            );
+    exception
+        when duplicate_object then null;
+    end
+$$;
+
+create table if not exists metrics_top
+(
+    type                metrics_top_type,
+    period              smallint not null,
+    address             char(42) not null,
+    value               numeric,
+    rank                smallint not null,
+    share               real default (0),
+    updated_at          timestamp default now(),
+    unique (type, period, address)
+);

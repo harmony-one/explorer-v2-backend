@@ -1,8 +1,8 @@
 import {withCache} from 'src/api/controllers/cache'
 import {stores} from 'src/store'
-import {MetricsType} from 'src/types'
+import {MetricsDailyType, MetricsTopType} from 'src/types'
 import {validator} from 'src/utils/validators/validators'
-import {isAddress, isLimit, isOffset, isOneOf, isShard} from 'src/utils/validators'
+import {isLimit, isOffset, isOneOf} from 'src/utils/validators'
 
 const DefaultLimit = 14
 
@@ -27,18 +27,30 @@ export async function getWalletsCountLast14Days(limit = DefaultLimit): Promise<a
 }
 
 export async function getMetricsByType(
-  type: MetricsType,
+  type: MetricsDailyType,
   offset = 0,
   limit = DefaultLimit
 ): Promise<any | null> {
   validator({
-    type: isOneOf(type, [...Object.values(MetricsType)]),
+    type: isOneOf(type, [...Object.values(MetricsDailyType)]),
     offset: isOffset(offset),
     limit: isLimit(limit, 2000),
   })
   return await withCache(
     ['getMetricsByType', arguments],
     () => stores[0].metrics.getMetricsByType(type, offset, limit),
-    1000 * 60 * 60 * 1
+    1000 * 60 * 10
+  )
+}
+
+export async function getTopMetricsByType(type: MetricsTopType, period = 1): Promise<any | null> {
+  validator({
+    type: isOneOf(type, [...Object.values(MetricsTopType)]),
+    period: isOneOf(period, [1, 3, 7]),
+  })
+  return await withCache(
+    ['getTopMetricsByType', arguments],
+    () => stores[0].metrics.getTopMetricsByType(type, period),
+    1000 * 60 * 10
   )
 }
