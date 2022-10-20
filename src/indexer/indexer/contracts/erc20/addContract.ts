@@ -22,6 +22,37 @@ const expectedMethodsAndEvents = [
 
 const callableMethods = ['symbol', 'name', 'decimals']
 
+const AdminChangedSignature = '0x7e644d79' // AdminChanged(address,address)
+const InitializeSignatures = ['0x8129fc1c', '0xfe4b84d'] // initialize(), initialize(uint256)
+
+const getProxyAddress = async (store: PostgresStorage, erc20: IERC20) => {
+  const {address: implAddress, name} = erc20
+  const internalTxs = await store.internalTransaction.getInternalTransactions({
+    filters: [
+      {
+        type: 'eq',
+        property: 'to',
+        value: `'${implAddress}'`,
+      },
+    ],
+  })
+  const firstDelegateCall = internalTxs.find(
+    (tx) =>
+      tx.type === 'delegatecall' &&
+      InitializeSignatures.includes(tx.input.toLowerCase().substring(0, 10))
+  )
+  if (firstDelegateCall) {
+    const {from: proxyAddress, transactionHash} = firstDelegateCall
+    const logs = await store.log.getLogsByField('transaction_hash', transactionHash)
+    const logAdminChanged = logs.find((log) =>
+      log.topics.find((topic) => topic.includes(AdminChangedSignature))
+    )
+    if (logAdminChanged) {
+      return proxyAddress
+    }
+  }
+}
+
 export const addContract = async (store: PostgresStorage, contract: Contract) => {
   if (!hasAllSignatures(expectedMethodsAndEvents, contract.bytecode)) {
     return
@@ -49,7 +80,19 @@ export const addContract = async (store: PostgresStorage, contract: Contract) =>
     symbol: params.symbol.replaceAll('\u0000', ''),
     lastUpdateBlockNumber: contract.blockNumber,
   }
-  l.info(`Found new contract "${erc20.name}" at ${contract.blockNumber}`)
 
   await store.erc20.addERC20(erc20)
+  l.info(`Found new contract "${erc20.name}" at ${contract.blockNumber}`)
+
+  const proxyAddress = await getProxyAddress(store, erc20)
+  if (proxyAddress) {
+    await store.contract.assignProxyImplementation(proxyAddress, erc20.address)
+    await store.erc20.addERC20({
+      ...erc20,
+      address: proxyAddress,
+    })
+    l.info(
+      `Found proxy contract "${proxyAddress}"; implementation "${erc20.address}" ("${erc20.name}")`
+    )
+  }
 }

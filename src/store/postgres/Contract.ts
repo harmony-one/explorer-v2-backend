@@ -108,6 +108,5 @@ export class PostgresStorageContract implements IStorageContract {
             SET updated_at = now()`,
       [contractAddress, implAddress]
     )
-    return this.getContractByField('address', contractAddress)
   }
 }

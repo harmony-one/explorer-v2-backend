@@ -32,18 +32,20 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
       .map((log) => {
         const [topic0, ...topics] = log.topics
         const decodedLog = decodeLog(ContractEventType.Transfer, log.data, topics)
-        if (![decodedLog.from, decodedLog.to].includes(zeroAddress)) {
-          const tokenAddress = normalizeAddress(log.address) as string
-          const from = normalizeAddress(decodedLog.from) as string
-          const to = normalizeAddress(decodedLog.to) as string
-          const value =
-            typeof decodedLog.value !== 'undefined'
-              ? BigInt(decodedLog.value).toString()
-              : undefined
+        const tokenAddress = normalizeAddress(log.address) as string
+        const from = normalizeAddress(decodedLog.from) as string
+        const to = normalizeAddress(decodedLog.to) as string
+        const value =
+          typeof decodedLog.value !== 'undefined' ? BigInt(decodedLog.value).toString() : undefined
 
+        if (from !== zeroAddress) {
           addressesToUpdate.add({address: from, tokenAddress})
+        }
+        if (to !== zeroAddress) {
           addressesToUpdate.add({address: to, tokenAddress})
+        }
 
+        if (![from, to].includes(zeroAddress)) {
           return {
             address: tokenAddress,
             from,
