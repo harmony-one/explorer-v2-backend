@@ -92,7 +92,7 @@ export const addContract = async (store: PostgresStorage, contract: Contract) =>
       address: proxyAddress,
     })
     l.info(
-      `Found proxy contract "${proxyAddress}"; implementation "${erc20.address}" ("${erc20.name}")`
+      `Found proxy contract: "${proxyAddress}", implementation address: "${erc20.address}" ("${erc20.name}")`
     )
   }
 }

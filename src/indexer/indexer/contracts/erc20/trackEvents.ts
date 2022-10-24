@@ -45,20 +45,18 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
           addressesToUpdate.add({address: to, tokenAddress})
         }
 
-        if (![from, to].includes(zeroAddress)) {
-          return {
-            address: tokenAddress,
-            from,
-            to,
-            value,
-            blockNumber: log.blockNumber,
-            logIndex: log.logIndex,
-            transactionIndex: log.transactionIndex,
-            transactionHash: log.transactionHash,
-            transactionType: 'erc20',
-            eventType: ContractEventType.Transfer,
-          } as ContractEvent
-        }
+        return {
+          address: tokenAddress,
+          from,
+          to,
+          value,
+          blockNumber: log.blockNumber,
+          logIndex: log.logIndex,
+          transactionIndex: log.transactionIndex,
+          transactionHash: log.transactionHash,
+          transactionType: 'erc20',
+          eventType: ContractEventType.Transfer,
+        } as ContractEvent
       })
       .filter((e) => e) as ContractEvent[]
 
