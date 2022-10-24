@@ -32,31 +32,31 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
       .map((log) => {
         const [topic0, ...topics] = log.topics
         const decodedLog = decodeLog(ContractEventType.Transfer, log.data, topics)
-        if (![decodedLog.from, decodedLog.to].includes(zeroAddress)) {
-          const tokenAddress = normalizeAddress(log.address) as string
-          const from = normalizeAddress(decodedLog.from) as string
-          const to = normalizeAddress(decodedLog.to) as string
-          const value =
-            typeof decodedLog.value !== 'undefined'
-              ? BigInt(decodedLog.value).toString()
-              : undefined
+        const tokenAddress = normalizeAddress(log.address) as string
+        const from = normalizeAddress(decodedLog.from) as string
+        const to = normalizeAddress(decodedLog.to) as string
+        const value =
+          typeof decodedLog.value !== 'undefined' ? BigInt(decodedLog.value).toString() : undefined
 
+        if (from !== zeroAddress) {
           addressesToUpdate.add({address: from, tokenAddress})
-          addressesToUpdate.add({address: to, tokenAddress})
-
-          return {
-            address: tokenAddress,
-            from,
-            to,
-            value,
-            blockNumber: log.blockNumber,
-            logIndex: log.logIndex,
-            transactionIndex: log.transactionIndex,
-            transactionHash: log.transactionHash,
-            transactionType: 'erc20',
-            eventType: ContractEventType.Transfer,
-          } as ContractEvent
         }
+        if (to !== zeroAddress) {
+          addressesToUpdate.add({address: to, tokenAddress})
+        }
+
+        return {
+          address: tokenAddress,
+          from,
+          to,
+          value,
+          blockNumber: log.blockNumber,
+          logIndex: log.logIndex,
+          transactionIndex: log.transactionIndex,
+          transactionHash: log.transactionHash,
+          transactionType: 'erc20',
+          eventType: ContractEventType.Transfer,
+        } as ContractEvent
       })
       .filter((e) => e) as ContractEvent[]
 
