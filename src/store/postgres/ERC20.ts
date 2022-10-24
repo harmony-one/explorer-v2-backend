@@ -28,7 +28,7 @@ export class PostgresStorageERC20 implements IStorageERC20 {
     const res = await this.query(
       `select e.*, cp.implementation_address from erc20 e 
             left join contracts_proxy cp
-            on cp.proxy_address = e.address `,
+            on cp.proxy_address = e.address`,
       []
     )
 
