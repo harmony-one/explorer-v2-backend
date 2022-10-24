@@ -52,7 +52,7 @@ export async function getBlocks(shardID: ShardID, filter?: Filter) {
       limit: isLimit(filter.limit),
       orderBy: isOrderBy(filter.orderBy, ['number']),
       orderDirection: isOrderDirection(filter.orderDirection),
-      filter: isFilters(filter.filters, ['number']),
+      filter: isFilters(filter.filters, ['number', 'timestamp']),
     })
   } else {
     filter = {
