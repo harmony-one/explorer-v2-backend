@@ -165,23 +165,3 @@ export async function getContractsByField(
 
   return res
 }
-
-export async function getProxyImplementation(
-  shardID: ShardID,
-  address: Address
-): Promise<Contract> {
-  validator({
-    address: isAddress(address),
-  })
-
-  const res = await withCache(
-    ['getProxyImplementation', arguments],
-    () => async () => {
-      const [contract] = await stores[shardID].contract.getContractByField('address', address)
-      return contract ? contract.implementationAddress : ''
-    },
-    1000 * 60
-  )
-
-  return res
-}
