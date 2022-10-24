@@ -85,7 +85,10 @@ export async function getRelatedTransactionsByType(
 
     if (filter.filters.find((filter) => filter.property === 'block_number')) {
       filter.filters = filter.filters.map((filter) => {
-        if (filter.property !== 'block_number') {
+        if (
+          filter.property !== 'block_number' ||
+          filter.value < config.api.internalTxsBlockNumberStart
+        ) {
           return filter
         }
         return {
