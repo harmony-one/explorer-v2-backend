@@ -84,15 +84,15 @@ export const addContract = async (store: PostgresStorage, contract: Contract) =>
   await store.erc20.addERC20(erc20)
   l.info(`Found new contract "${erc20.name}" at ${contract.blockNumber}`)
 
-  const proxyAddress = await getProxyAddress(store, erc20)
-  if (proxyAddress) {
-    await store.contract.assignProxyImplementation(proxyAddress, erc20.address)
-    await store.erc20.addERC20({
-      ...erc20,
-      address: proxyAddress,
-    })
-    l.info(
-      `Found proxy contract: "${proxyAddress}", implementation address: "${erc20.address}" ("${erc20.name}")`
-    )
-  }
+  // const proxyAddress = await getProxyAddress(store, erc20)
+  // if (proxyAddress) {
+  //   await store.contract.assignProxyImplementation(proxyAddress, erc20.address)
+  //   await store.erc20.addERC20({
+  //     ...erc20,
+  //     address: proxyAddress,
+  //   })
+  //   l.info(
+  //     `Found proxy contract: "${proxyAddress}", implementation address: "${erc20.address}" ("${erc20.name}")`
+  //   )
+  // }
 }
