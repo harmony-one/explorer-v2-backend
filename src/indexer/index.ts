@@ -45,9 +45,19 @@ export const indexer = async () => {
     logIndexer0.loop()
   }
 
+  if (config.indexer.isSyncingLogsEnabledShard1 && config.indexer.shards.includes(0)) {
+    const logIndexer1 = new LogIndexer(0)
+    logIndexer1.loop()
+  }
+
   if (config.indexer.isSyncingContractsEnabled && config.indexer.shards.includes(0)) {
     const contractIndexer0 = new ContractIndexer()
     contractIndexer0.loop()
+  }
+
+  if (config.indexer.isSyncingContractsEnabledShard1 && config.indexer.shards.includes(0)) {
+    const contractIndexer1 = new ContractIndexer()
+    contractIndexer1.loop()
   }
 }
 
