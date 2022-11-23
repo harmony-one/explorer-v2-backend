@@ -1,10 +1,9 @@
 import {PostgresStorage} from 'src/store/postgres'
-import {ABI} from 'src/indexer/indexer/contracts/erc20/ABI'
+import {ABIFactory} from 'src/indexer/indexer/contracts/erc20/ABI'
 import {logger} from 'src/logger'
 import {Address, Filter, IERC20} from 'src/types'
 
 const l = logger(module, 'erc20:balance')
-const {call} = ABI
 
 const filter: Filter = {
   limit: 100,
@@ -19,6 +18,7 @@ const filter: Filter = {
 }
 // update balances
 export const onFinish = async (store: PostgresStorage) => {
+  const {call} = ABIFactory(store.shardID)
   l.info(`Updating balances`)
   let count = 0
   const tokensForUpdate = new Set<Address>()

@@ -2,9 +2,8 @@ import {Address, ByteCode, Contract, IERC20} from 'src/types'
 import {validator, isUint, isLength} from 'src/utils/validators/validators'
 import {logger} from 'src/logger'
 import {PostgresStorage} from 'src/store/postgres'
-import {ABI} from './ABI'
+import {ABIFactory} from './ABI'
 
-const {hasAllSignatures, callAll} = ABI
 const l = logger(module, 'erc20')
 
 // https://eips.ethereum.org/EIPS/eip-20
@@ -54,6 +53,8 @@ const getProxyAddress = async (store: PostgresStorage, erc20: IERC20) => {
 }
 
 export const addContract = async (store: PostgresStorage, contract: Contract) => {
+  const {hasAllSignatures, callAll} = ABIFactory(store.shardID)
+
   if (!hasAllSignatures(expectedMethodsAndEvents, contract.bytecode)) {
     return
   }
@@ -61,7 +62,7 @@ export const addContract = async (store: PostgresStorage, contract: Contract) =>
   let params: Record<typeof callableMethods[number], string>
 
   try {
-    params = await callAll(contract.address, callableMethods)
+    params = await callAll(store.shardID, contract.address, callableMethods)
 
     validator({
       decimals: () => isUint(+params.decimals),

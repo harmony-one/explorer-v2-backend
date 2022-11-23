@@ -1,12 +1,12 @@
 import {IABI} from 'src/indexer/indexer/contracts/types'
 import {ByteCode, Address} from 'src/types'
-
+import {ShardID} from 'src/types'
 import Web3 from 'web3'
 import * as RPCClient from 'src/indexer/rpc/client'
 
 const web3 = new Web3()
 
-export const ABIManager = (abi: IABI) => {
+export const ABIManager = (shardID: ShardID, abi: IABI) => {
   const entries = abi
     .filter(({type}) => ['function', 'event'].includes(type))
     .map((e) => {
@@ -60,7 +60,7 @@ export const ABIManager = (abi: IABI) => {
     }
     const inputs = web3.eth.abi.encodeParameters(entry.inputs || [], params)
 
-    const response = await RPCClient.call(0, {
+    const response = await RPCClient.call(shardID, {
       to: address,
       data: entry.signature + inputs.slice(2),
     })
@@ -68,7 +68,7 @@ export const ABIManager = (abi: IABI) => {
     return web3.eth.abi.decodeParameters(entry.outputs, response)['0']
   }
 
-  const callAll = (address: Address, methodsNames: string[]) => {
+  const callAll = (shardID: ShardID, address: Address, methodsNames: string[]) => {
     return Promise.all(
       methodsNames.map(async (methodName) => {
         const entry = getEntryByName(methodName)
@@ -76,7 +76,7 @@ export const ABIManager = (abi: IABI) => {
           throw new Error(`${methodName} not found`)
         }
 
-        const response = await RPCClient.call(0, {
+        const response = await RPCClient.call(shardID, {
           to: address,
           data: entry.signature,
         })

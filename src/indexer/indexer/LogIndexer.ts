@@ -23,8 +23,8 @@ export class LogIndexer {
   readonly store: PostgresStorage
 
   constructor(shardID: ShardID) {
-    if (shardID !== 0) {
-      throw new Error('Only shard #0 is currently supported')
+    if (shardID !== 0 && shardID !== 1) {
+      throw new Error('Only shards #0 and #1 are currently supported')
     }
 
     this.l = logger(module, `shard${shardID}`)
