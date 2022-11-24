@@ -1,6 +1,7 @@
 import {Response, Request, Router, NextFunction} from 'express'
 import * as controllers from 'src/api/controllers'
 import {catchAsync} from 'src/api/rest/utils'
+import {ShardID} from 'src/types/blockchain'
 
 export const erc721Router = Router({mergeParams: true})
 

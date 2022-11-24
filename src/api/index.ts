@@ -11,6 +11,6 @@ export const api = async () => {
 
   await warmUpCache()
   await RESTServer()
-  await GRPCServer()
+  // await GRPCServer()
   await webSocketServer()
 }
