@@ -7,22 +7,26 @@ export const erc721Router = Router({mergeParams: true})
 erc721Router.get('/', catchAsync(getAllERC721))
 
 export async function getAllERC721(req: Request, res: Response, next: NextFunction) {
-  const data = await controllers.getAllERC721()
+  const {shardID} = req.params
+  const s = +shardID as ShardID
+  const data = await controllers.getAllERC721(s)
   next(data)
 }
 
 erc721Router.get('/address/:address/balances', catchAsync(getUserERC721Assets))
 
 export async function getUserERC721Assets(req: Request, res: Response, next: NextFunction) {
-  const {address} = req.params
-  const data = await controllers.getUserERC721Assets(address)
+  const {address, shardID} = req.params
+  const s = +shardID as ShardID
+  const data = await controllers.getUserERC721Assets(s, address)
   next(data)
 }
 
 erc721Router.get('/token/:address/balances', catchAsync(getTokenERC721Assets))
 
 export async function getTokenERC721Assets(req: Request, res: Response, next: NextFunction) {
-  const {address} = req.params
-  const data = await controllers.getTokenERC721Assets(address)
+  const {address, shardID} = req.params
+  const s = +shardID as ShardID
+  const data = await controllers.getTokenERC721Assets(s, address)
   next(data)
 }

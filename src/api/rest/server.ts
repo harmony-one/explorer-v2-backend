@@ -65,15 +65,15 @@ export const RESTServer = async () => {
   mainRouter0.use('/address', addressRouter)
   mainRouter0.use('/internalTransaction', internalTransactionRouter)
   mainRouter0.use('/logs', logsRouter)
+  mainRouter0.use('/erc20', erc20Router, transport)
+  mainRouter0.use('/erc721', erc721Router, transport)
+  mainRouter0.use('/erc1155', erc1155Router, transport)
 
   const routerWithShards0 = Router({mergeParams: true})
   routerWithShards0.use('/shard/:shardID', mainRouter0, transport)
   routerWithShards0.use('/signature', signatureRouter, transport)
   routerWithShards0.use('/price', priceRouter, transport)
   routerWithShards0.use('/metrics', metricsRouter, transport)
-  routerWithShards0.use('/erc20', erc20Router, transport)
-  routerWithShards0.use('/erc721', erc721Router, transport)
-  routerWithShards0.use('/erc1155', erc1155Router, transport)
   routerWithShards0.use('/1wallet', oneWalletMetricsRouter, transport)
 
   if (config.api.json_rpc.isEnabled) {
