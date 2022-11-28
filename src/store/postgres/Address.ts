@@ -11,7 +11,7 @@ import {Query} from 'src/store/postgres/types'
 import {fromSnakeToCamelResponse} from 'src/store/postgres/queryMapper'
 import {buildSQLQuery} from 'src/store/postgres/filters'
 
-const subQueryLimit = 100000
+const subQueryLimit = 1000 // 100000
 
 export class PostgresStorageAddress implements IStorageAddress {
   query: Query
@@ -103,7 +103,7 @@ export class PostgresStorageAddress implements IStorageAddress {
       select it.*, t.input, t.timestamp from (
         select * from (
         (select * from internal_transactions it ${filterQuery} and it.from = $1 order by block_number desc limit $4)
-        union 
+        union
         (select * from internal_transactions it ${filterQuery} and it.to = $1 order by block_number desc limit $4)
         ) it
         ${filterQuery}
@@ -196,11 +196,11 @@ export class PostgresStorageAddress implements IStorageAddress {
     } else if (type === 'internal_transaction') {
       const filterQuery = buildSQLQuery({filters: filter.filters})
       const [{count}] = await this.query(
-        ` 
+        `
       select count(t.*) from (
         select * from (
           (select * from internal_transactions it ${filterQuery} and it.from = $1)
-          union 
+          union
           (select * from internal_transactions it ${filterQuery} and it.to = $1)
         ) it
         ${filterQuery}
