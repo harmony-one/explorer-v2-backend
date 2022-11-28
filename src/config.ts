@@ -93,12 +93,17 @@ export const config = {
     isEnabled: toBool(process.env.INDEXER_IS_ENABLED || '0'),
     isSyncingBlocksEnabled: toBool(process.env.INDEXER_BLOCKS_IS_ENABLED || '0'),
     isSyncingLogsEnabled: toBool(process.env.INDEXER_LOGS_IS_ENABLED || '0'),
+    isSyncingLogsEnabledShard1: toBool(process.env.INDEXER_LOGS_IS_ENABLED_SHARD1 || '0'),
     isSyncingContractsEnabled: toBool(process.env.INDEXER_CONTRACTS_IS_ENABLED || '0'),
+    isSyncingContractsEnabledShard1: toBool(process.env.INDEXER_CONTRACTS_IS_ENABLED_SHARD1 || '0'),
     isSyncedThreshold: +(process.env.INDEXER_IS_SYNCED_THRESHOLD || 10),
     trackContractTypes: getCommaSeparatedList(process.env.INDEXER_CONTRACTS_TYPES),
     initialBlockSyncingHeight: +(process.env.INDEXER_INITIAL_BLOCK_SYNCING_HEIGHT || 0),
     // set to the height where smart contracts were introduced on the chain
     initialLogsSyncingHeight: +(process.env.INDEXER_LOG_INITIAL_BLOCK_SYNCING_HEIGHT || 3500000),
+    initialLogsSyncingHeightShard1: +(
+      process.env.INDEXER_LOG_INITIAL_BLOCK_SYNCING_HEIGHT_SHARD1 || 0
+    ),
     batchCount: +(process.env.INDEXER_BATCH_COUNT || 100),
     blockIndexerBlockRange: +(process.env.BLOCK_INDEXER_BLOCK_RANGE || 10),
     rpc: {

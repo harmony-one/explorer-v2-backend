@@ -40,14 +40,25 @@ export const indexer = async () => {
     statsIndexer()
   }
 
+  // todo dry
   if (config.indexer.isSyncingLogsEnabled && config.indexer.shards.includes(0)) {
     const logIndexer0 = new LogIndexer(0)
     logIndexer0.loop()
   }
 
+  if (config.indexer.isSyncingLogsEnabledShard1 && config.indexer.shards.includes(1)) {
+    const logIndexer1 = new LogIndexer(1)
+    logIndexer1.loop()
+  }
+
   if (config.indexer.isSyncingContractsEnabled && config.indexer.shards.includes(0)) {
-    const contractIndexer0 = new ContractIndexer()
+    const contractIndexer0 = new ContractIndexer(0)
     contractIndexer0.loop()
+  }
+
+  if (config.indexer.isSyncingContractsEnabledShard1 && config.indexer.shards.includes(1)) {
+    const contractIndexer1 = new ContractIndexer(1)
+    contractIndexer1.loop()
   }
 }
 

@@ -1,5 +1,5 @@
 import {PostgresStorage} from 'src/store/postgres'
-import {ABI} from 'src/indexer/indexer/contracts/erc1155/ABI'
+import {ABIFactory} from 'src/indexer/indexer/contracts/erc1155/ABI'
 import {logger} from 'src/logger'
 import {Address, Filter, IERC20, IERC721TokenID} from 'src/types'
 import nodeFetch from 'node-fetch'
@@ -7,7 +7,6 @@ import {normalizeAddress} from 'src/utils/normalizeAddress'
 import {getByIPFSHash} from 'src/indexer/utils/ipfs/index'
 
 const l = logger(module, 'erc1155:assets')
-const {call} = ABI
 
 const filter: Filter = {
   limit: 10,
@@ -22,6 +21,8 @@ const filter: Filter = {
 }
 // update balances
 export const updateAssets = async (store: PostgresStorage) => {
+  const {call} = ABIFactory(store.shardID)
+
   l.info(`Updating assets`)
   let count = 0
   const tokensForUpdate = new Set<Address>()
@@ -92,6 +93,8 @@ export const updateAssets = async (store: PostgresStorage) => {
 }
 
 export const updateBalances = async (store: PostgresStorage) => {
+  const {call} = ABIFactory(store.shardID)
+
   l.info(`Updating balances`)
   const tokensForUpdate = new Set<Address>()
   let count = 0

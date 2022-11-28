@@ -6,6 +6,7 @@ import {tasks} from './tasks'
 import {ContractTracker} from 'src/indexer/indexer/contracts/types'
 import {PostgresStorage} from 'src/store/postgres'
 import {EntityIteratorEntities} from 'src/indexer/utils/EntityIterator/entities'
+import {ShardID} from 'src/types'
 
 const syncingIntervalMs = 1000 * 60 * 5
 
@@ -14,9 +15,9 @@ export class ContractIndexer {
   readonly ls: Record<string, LoggerModule>
   readonly store: PostgresStorage
 
-  constructor() {
-    this.store = stores[0]
-    this.l = logger(module)
+  constructor(shardID: ShardID) {
+    this.store = stores[shardID]
+    this.l = logger(module, ':Shard' + shardID)
     this.l.info(`Created [${tasks.map((t) => t.name).join(', ')}]`)
     this.ls = tasks
       .map((t) => t.name)
@@ -39,7 +40,7 @@ export class ContractIndexer {
 
     const {batchSize, process} = task.addContract
     this.ls[task.name].info(`Syncing contracts from block ${startBlock}`)
-    const contractsIterator = EntityIterator('contracts', {
+    const contractsIterator = EntityIterator(this.store, 'contracts', {
       batchSize,
       index: startBlock,
     })
@@ -71,6 +72,7 @@ export class ContractIndexer {
     )
 
     const tokensIterator = EntityIterator(
+      this.store,
       (task.tableName as EntityIteratorEntities) || (task.name as EntityIteratorEntities),
       {
         batchSize: 1,
@@ -91,7 +93,7 @@ export class ContractIndexer {
       const startBlock = latestSyncedBlock && latestSyncedBlock > 0 ? latestSyncedBlock + 1 : 0
       let latestSyncedTokenBlock = latestSyncedBlock
 
-      const logsIterator = EntityIterator('logs', {
+      const logsIterator = EntityIterator(this.store, 'logs', {
         batchSize,
         index: startBlock,
         address: token.address,

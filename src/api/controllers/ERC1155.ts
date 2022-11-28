@@ -4,61 +4,79 @@ import {withCache} from 'src/api/controllers/cache'
 import {validator} from 'src/utils/validators/validators'
 import {isAddress, isShard} from 'src/utils/validators'
 
-export async function getAllERC1155(): Promise<IERC1155[] | null> {
+export async function getAllERC1155(shardID: ShardID): Promise<IERC1155[] | null> {
+  validator({
+    shardID: isShard(shardID),
+  })
+
   return await withCache(
-    ['getAllERC1155', arguments],
-    () => stores[0].erc1155.getAllERC1155(),
+    [shardID, 'getAllERC1155', arguments],
+    () => stores[shardID].erc1155.getAllERC1155(),
     1000 * 60 * 15
   )
 }
 
-export async function getUserERC1155Balances(address: Address): Promise<IERC20Balance[] | null> {
+export async function getUserERC1155Balances(
+  shardID: ShardID,
+  address: Address
+): Promise<IERC20Balance[] | null> {
   validator({
     address: isAddress(address),
+    shardID: isShard(shardID),
   })
 
   return await withCache(
-    ['getUserERC1155Balances', arguments],
-    () => stores[0].erc1155.getUserBalances(address),
+    [shardID, 'getUserERC1155Balances', arguments],
+    () => stores[shardID].erc1155.getUserBalances(address),
     1000 * 2
   )
 }
 
-export async function getTokenERC1155Balances(address: Address): Promise<IERC20Balance[] | null> {
+export async function getTokenERC1155Balances(
+  shardID: ShardID,
+  address: Address
+): Promise<IERC20Balance[] | null> {
   validator({
+    shardID: isShard(shardID),
     address: isAddress(address),
   })
 
   return await withCache(
-    ['getTokenERC1155Balances', arguments],
-    () => stores[0].erc1155.getTokenBalances(address),
+    [shardID, 'getTokenERC1155Balances', arguments],
+    () => stores[shardID].erc1155.getTokenBalances(address),
     1000 * 10
   )
 }
 
-export async function getTokenERC1155Assets(address: Address): Promise<IERC20Balance[] | null> {
+export async function getTokenERC1155Assets(
+  shardID: ShardID,
+  address: Address
+): Promise<IERC20Balance[] | null> {
   validator({
+    shardID: isShard(shardID),
     address: isAddress(address),
   })
 
   return await withCache(
-    ['getTokenERC1155Assets', arguments],
-    () => stores[0].erc1155.getTokenAssets(address),
+    [shardID, 'getTokenERC1155Assets', arguments],
+    () => stores[shardID].erc1155.getTokenAssets(address),
     1000 * 60 * 5
   )
 }
 
 export async function getTokenERC1155AssetDetails(
+  shardID: ShardID,
   address: Address,
   tokenID: string
 ): Promise<IERC20Balance[] | null> {
   validator({
+    shardID: isShard(shardID),
     address: isAddress(address),
   })
 
   return await withCache(
-    ['getTokenERC1155Assets', arguments],
-    () => stores[0].erc1155.getTokenAssetDetails(address, tokenID),
+    [shardID, 'getTokenERC1155Assets', arguments],
+    () => stores[shardID].erc1155.getTokenAssetDetails(address, tokenID),
     1000 * 60 * 5
   )
 }

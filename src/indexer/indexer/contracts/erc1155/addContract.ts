@@ -2,10 +2,9 @@ import {Contract, IERC1155} from 'src/types'
 import {validator, isUint, isLength} from 'src/utils/validators/validators'
 import {logger} from 'src/logger'
 import {PostgresStorage} from 'src/store/postgres'
-import {ABI} from './ABI'
+import {ABIFactory} from './ABI'
 import {getByIPFSHash} from 'src/indexer/utils/ipfs/index'
 
-const {hasAllSignatures, callAll} = ABI
 const l = logger(module, 'erc1155')
 
 // https://eips.ethereum.org/EIPS/eip-20
@@ -30,6 +29,8 @@ const initialMeta = {
 const initialEmptyMeta = JSON.stringify({})
 
 export const addContract = async (store: PostgresStorage, contract: Contract) => {
+  const {hasAllSignatures, callAll} = ABIFactory(store.shardID)
+
   if (!hasAllSignatures(expectedMethodsAndEvents, contract.bytecode)) {
     return
   }
@@ -39,7 +40,7 @@ export const addContract = async (store: PostgresStorage, contract: Contract) =>
   let metaJSON = initialEmptyMeta
 
   try {
-    params = await callAll(contract.address, callableMethods)
+    params = await callAll(store.shardID, contract.address, callableMethods)
 
     const prepareMeta = async () => {
       meta = (await getByIPFSHash(params.contractURI)) || initialMeta

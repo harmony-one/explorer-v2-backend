@@ -1,17 +1,13 @@
 import {Log, IERC20, ContractEvent, ContractEventType} from 'src/types'
 import {PostgresStorage} from 'src/store/postgres'
-import {ABI} from './ABI'
+import {ABIFactory} from './ABI'
 import {logger} from 'src/logger'
 
-const {getEntryByName, decodeLog} = ABI
 import {zeroAddress} from 'src/indexer/indexer/contracts/utils/zeroAddress'
 import {normalizeAddress} from 'src/utils/normalizeAddress'
 import {logTime} from 'src/utils/logTime'
 
 const l = logger(module, 'erc20')
-
-const transferSignature = getEntryByName(ContractEventType.Transfer)!.signature
-const approveSignature = getEntryByName(ContractEventType.Approval)!.signature
 
 type IParams = {
   token: IERC20
@@ -24,6 +20,11 @@ type IParams = {
 // todo filter out other topics
 
 export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: IParams) => {
+  const {getEntryByName, decodeLog} = ABIFactory(store.shardID)
+
+  const transferSignature = getEntryByName(ContractEventType.Transfer)!.signature
+  const approveSignature = getEntryByName(ContractEventType.Approval)!.signature
+
   const transferLogs = logs.filter(({topics}) => topics.includes(transferSignature))
 
   if (transferLogs.length > 0) {

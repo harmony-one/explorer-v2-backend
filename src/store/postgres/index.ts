@@ -28,6 +28,8 @@ import {config} from 'src/config'
 const defaultRetries = 2
 
 const sleep = (time = 1000) => new Promise((r) => setTimeout(r, time))
+const removeOldInternalTransactionsTaskPeriod = 1000 * 60 * 60 * 24
+const blockNumber7DayOld = (7 * 24 * 60 * 60) / 2
 
 export class PostgresStorage implements IStorage {
   db: Pool
@@ -96,6 +98,11 @@ export class PostgresStorage implements IStorage {
     this.isStarted = true
     this.isStarting = false
     this.l.info('Done')
+
+    this.l.info(
+      `Start removing internal transactions task, period: ${removeOldInternalTransactionsTaskPeriod}`
+    )
+    this.removeOldInternalTransactionsTask()
   }
 
   async migrate() {
@@ -159,6 +166,15 @@ export class PostgresStorage implements IStorage {
     ])
 
     return {count}
+  }
+
+  removeOldInternalTransactionsTask = async () => {
+    const lastBlockNumber = await this.block.getLatestBlockNumber()
+    const toBlock = lastBlockNumber - blockNumber7DayOld
+    this.l.info(`Removing internal transactions where block number < ${toBlock}`)
+
+    await this.internalTransaction.removeInternalTransactionsOlder7Days(lastBlockNumber)
+    setTimeout(this.removeOldInternalTransactionsTask, removeOldInternalTransactionsTaskPeriod)
   }
 
   async stop() {
