@@ -19,6 +19,7 @@ const filter: Filter = {
 // update balances
 export const onFinish = async (store: PostgresStorage) => {
   const {call} = ABIFactory(store.shardID)
+
   l.info(`Updating balances`)
   let count = 0
   const tokensForUpdate = new Set<Address>()
