@@ -103,7 +103,11 @@ export class PostgresStorage implements IStorage {
       this.l.info(
         `Start removing internal transactions task, period: ${removeOldInternalTransactionsTaskPeriod}`
       )
-      this.removeOldInternalTransactionsTask()
+      try {
+        await this.removeOldInternalTransactionsTask()
+      } catch (err) {
+        this.l.error(`Failed to start removing internal transactions task: ${JSON.stringify(err)}`)
+      }
     }
   }
 
