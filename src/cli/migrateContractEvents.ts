@@ -13,15 +13,20 @@ import {init as configInit} from 'src/config'
 import {ContractEvent, ContractEventType, ContractType, Log} from 'src/types'
 import {logger} from 'src/logger'
 import {stores} from 'src/store'
-import {ABI as erc20ABI} from 'src/indexer/indexer/contracts/erc20/ABI'
-import {ABI as erc721ABI} from 'src/indexer/indexer/contracts/erc721/ABI'
-import {ABI as erc1155ABI} from 'src/indexer/indexer/contracts/erc1155/ABI'
+import {ABIFactory as erc20ABIFactory} from 'src/indexer/indexer/contracts/erc20/ABI'
+import {ABIFactory as erc721ABIFactory} from 'src/indexer/indexer/contracts/erc721/ABI'
+import {ABIFactory as erc1155ABIFactory} from 'src/indexer/indexer/contracts/erc1155/ABI'
 import {zeroAddress} from 'src/indexer/indexer/contracts/utils/zeroAddress'
 import {normalizeAddress} from 'src/utils/normalizeAddress'
 
 const l = logger(module, `ContractEventsMigrator`)
 
 const SHARD_ID = 0
+
+const erc20ABI = erc20ABIFactory(SHARD_ID)
+const erc721ABI = erc721ABIFactory(SHARD_ID)
+const erc1155ABI = erc1155ABIFactory(SHARD_ID)
+
 const START_BLOCK_NUMBER = 23167800 // start block_number from logs table
 const FINISH_BLOCK_NUMBER = 23281610 // end block_number from logs table
 const BLOCKS_BATCH_SIZE = 1000
