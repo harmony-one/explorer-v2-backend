@@ -12,7 +12,7 @@ export async function getAllERC1155(shardID: ShardID): Promise<IERC1155[] | null
   return await withCache(
     [shardID, 'getAllERC1155', arguments],
     () => stores[shardID].erc1155.getAllERC1155(),
-    1000 * 60 * 15
+    1000 * 60 * 60
   )
 }
 
@@ -28,7 +28,7 @@ export async function getUserERC1155Balances(
   return await withCache(
     [shardID, 'getUserERC1155Balances', arguments],
     () => stores[shardID].erc1155.getUserBalances(address),
-    1000 * 2
+    1000 * 60 * 10
   )
 }
 
@@ -44,7 +44,7 @@ export async function getTokenERC1155Balances(
   return await withCache(
     [shardID, 'getTokenERC1155Balances', arguments],
     () => stores[shardID].erc1155.getTokenBalances(address),
-    1000 * 10
+    1000 * 60 * 10
   )
 }
 
@@ -60,7 +60,7 @@ export async function getTokenERC1155Assets(
   return await withCache(
     [shardID, 'getTokenERC1155Assets', arguments],
     () => stores[shardID].erc1155.getTokenAssets(address),
-    1000 * 60 * 5
+    1000 * 60 * 60
   )
 }
 
@@ -77,6 +77,6 @@ export async function getTokenERC1155AssetDetails(
   return await withCache(
     [shardID, 'getTokenERC1155Assets', arguments],
     () => stores[shardID].erc1155.getTokenAssetDetails(address, tokenID),
-    1000 * 60 * 5
+    1000 * 60 * 60
   )
 }

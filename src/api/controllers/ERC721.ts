@@ -12,7 +12,7 @@ export async function getAllERC721(shardID: ShardID): Promise<IERC20[] | null> {
   return await withCache(
     [shardID, 'getAllERC721', arguments],
     () => stores[shardID].erc721.getAllERC721(),
-    1000 * 60 * 5
+    1000 * 60 * 60
   )
 }
 
@@ -28,7 +28,7 @@ export async function getUserERC721Assets(
   return await withCache(
     [shardID, 'getUserERC721Assets', arguments],
     () => stores[shardID].erc721.getUserAssets(address),
-    1000 * 2
+    1000 * 60 * 60
   )
 }
 
@@ -44,6 +44,6 @@ export async function getTokenERC721Assets(
   return await withCache(
     [shardID, 'getTokenERC721Assets', arguments],
     () => stores[shardID].erc721.getTokenAssets(address),
-    1000 * 2
+    1000 * 60 * 60
   )
 }
