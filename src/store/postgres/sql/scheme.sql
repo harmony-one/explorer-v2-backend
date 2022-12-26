@@ -436,8 +436,8 @@ create table if not exists contract_events
     unique (transaction_index, transaction_hash, log_index, "from", "to")
 );
 
-create index if not exists idx_contract_events_from_block_number on contract_events ("from", block_number desc);
-create index if not exists idx_contract_events_to_block_number on contract_events ("to", block_number desc);
+create index if not exists idx_contract_events_from_type_block_number on contract_events ("from", transaction_type, block_number desc);
+create index if not exists idx_contract_events_to_type_block_number on contract_events ("to", transaction_type, block_number desc);
 create index if not exists idx_contract_events_transaction_hash on contract_events using hash (transaction_hash);
 
 create table if not exists onewallet_owners
