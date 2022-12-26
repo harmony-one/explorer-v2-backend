@@ -64,7 +64,8 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
     const updateBalancesPromises = [...addressesToUpdate.values()].map(({address, tokenAddress}) =>
       store.erc20.setNeedUpdateBalance(address, tokenAddress)
     )
-    const addEventsPromises = transferEvents.map((e) => store.contract.addContractEvent(e))
+    // inserting into contract_events temporarily turned off to reduce the size of the DB
+    const addEventsPromises: never[] = [] // transferEvents.map((e) => store.contract.addContractEvent(e))
 
     await Promise.all(updateBalancesPromises.concat(addEventsPromises))
 
@@ -73,28 +74,30 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
     )
   }
 
-  const approveLogs = logs.filter(({topics}) => topics.includes(approveSignature))
-  if (approveLogs.length > 0) {
-    const approveEvents = approveLogs.map((log) => {
-      const [topic0, ...topics] = log.topics
-      const {_owner, _spender, _value: value} = decodeLog(
-        ContractEventType.Approval,
-        log.data,
-        topics
-      )
-      return {
-        address: normalizeAddress(log.address),
-        from: normalizeAddress(_owner),
-        to: normalizeAddress(_spender),
-        value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
-        blockNumber: log.blockNumber,
-        logIndex: log.logIndex,
-        transactionIndex: log.transactionIndex,
-        transactionHash: log.transactionHash,
-        transactionType: 'erc20',
-        eventType: ContractEventType.Approval,
-      } as ContractEvent
-    })
-    await Promise.all(approveEvents.map((e) => store.contract.addContractEvent(e)))
-  }
+  // inserting into contract_events temporarily turned off to reduce the size of the DB
+
+  // const approveLogs = logs.filter(({topics}) => topics.includes(approveSignature))
+  // if (approveLogs.length > 0) {
+  //   const approveEvents = approveLogs.map((log) => {
+  //     const [topic0, ...topics] = log.topics
+  //     const {_owner, _spender, _value: value} = decodeLog(
+  //       ContractEventType.Approval,
+  //       log.data,
+  //       topics
+  //     )
+  //     return {
+  //       address: normalizeAddress(log.address),
+  //       from: normalizeAddress(_owner),
+  //       to: normalizeAddress(_spender),
+  //       value: typeof value !== 'undefined' ? BigInt(value).toString() : undefined,
+  //       blockNumber: log.blockNumber,
+  //       logIndex: log.logIndex,
+  //       transactionIndex: log.transactionIndex,
+  //       transactionHash: log.transactionHash,
+  //       transactionType: 'erc20',
+  //       eventType: ContractEventType.Approval,
+  //     } as ContractEvent
+  //   })
+  //   await Promise.all(approveEvents.map((e) => store.contract.addContractEvent(e)))
+  // }
 }
