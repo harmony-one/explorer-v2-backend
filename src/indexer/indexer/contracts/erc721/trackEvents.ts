@@ -64,7 +64,8 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
       .filter((e) => e) as ContractEvent[]
 
     // todo burn token?
-    const addEventsPromises = contractEvents.map((e) => store.contract.addContractEvent(e))
+    // inserting into contract_events temporarily turned off to reduce the size of the DB
+    const addEventsPromises: never[] = [] // contractEvents.map((e) => store.contract.addContractEvent(e))
     const updateAssetPromises = [...addressesToUpdate.values()].map((item) =>
       store.erc721.setNeedUpdateAsset(item.address, item.tokenAddress, item.tokenId)
     )
@@ -76,53 +77,55 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
     )
   }
 
-  const approvalForAllLogs = logs.filter(({topics}) => topics.includes(approvalForAllSignature))
-  if (approvalForAllLogs.length > 0) {
-    const events = approvalForAllLogs.map((log) => {
-      const [topic0, ...topics] = log.topics
-      const {owner, operator, approved} = decodeLog(
-        ContractEventType.ApprovalForAll,
-        log.data,
-        topics
-      )
-      return {
-        address: normalizeAddress(log.address),
-        from: normalizeAddress(owner),
-        to: normalizeAddress(operator),
-        value: (+!!approved).toString(),
-        blockNumber: log.blockNumber,
-        logIndex: log.logIndex,
-        transactionIndex: log.transactionIndex,
-        transactionHash: log.transactionHash,
-        transactionType: 'erc721',
-        eventType: ContractEventType.ApprovalForAll,
-      } as ContractEvent
-    })
-    await Promise.all(events.map((e) => store.contract.addContractEvent(e)))
-  }
+  // inserting into contract_events temporarily turned off to reduce the size of the DB
 
-  const approvalLogs = logs.filter(({topics}) => topics.includes(approvalSignature))
-  if (approvalLogs.length > 0) {
-    const events = approvalLogs.map((log) => {
-      const [topic0, ...topics] = log.topics
-      const {owner, approved, tokenId} = decodeLog(
-        ContractEventType.ApprovalForAll,
-        log.data,
-        topics
-      )
-      return {
-        address: normalizeAddress(log.address),
-        from: normalizeAddress(owner),
-        to: '',
-        value: (+!!approved).toString(),
-        blockNumber: log.blockNumber,
-        logIndex: log.logIndex,
-        transactionIndex: log.transactionIndex,
-        transactionHash: log.transactionHash,
-        transactionType: 'erc721',
-        eventType: ContractEventType.ApprovalForAll,
-      } as ContractEvent
-    })
-    await Promise.all(events.map((e) => store.contract.addContractEvent(e)))
-  }
+  // const approvalForAllLogs = logs.filter(({topics}) => topics.includes(approvalForAllSignature))
+  // if (approvalForAllLogs.length > 0) {
+  //   const events = approvalForAllLogs.map((log) => {
+  //     const [topic0, ...topics] = log.topics
+  //     const {owner, operator, approved} = decodeLog(
+  //       ContractEventType.ApprovalForAll,
+  //       log.data,
+  //       topics
+  //     )
+  //     return {
+  //       address: normalizeAddress(log.address),
+  //       from: normalizeAddress(owner),
+  //       to: normalizeAddress(operator),
+  //       value: (+!!approved).toString(),
+  //       blockNumber: log.blockNumber,
+  //       logIndex: log.logIndex,
+  //       transactionIndex: log.transactionIndex,
+  //       transactionHash: log.transactionHash,
+  //       transactionType: 'erc721',
+  //       eventType: ContractEventType.ApprovalForAll,
+  //     } as ContractEvent
+  //   })
+  //   await Promise.all(events.map((e) => store.contract.addContractEvent(e)))
+  // }
+
+  // const approvalLogs = logs.filter(({topics}) => topics.includes(approvalSignature))
+  // if (approvalLogs.length > 0) {
+  //   const events = approvalLogs.map((log) => {
+  //     const [topic0, ...topics] = log.topics
+  //     const {owner, approved, tokenId} = decodeLog(
+  //       ContractEventType.ApprovalForAll,
+  //       log.data,
+  //       topics
+  //     )
+  //     return {
+  //       address: normalizeAddress(log.address),
+  //       from: normalizeAddress(owner),
+  //       to: '',
+  //       value: (+!!approved).toString(),
+  //       blockNumber: log.blockNumber,
+  //       logIndex: log.logIndex,
+  //       transactionIndex: log.transactionIndex,
+  //       transactionHash: log.transactionHash,
+  //       transactionType: 'erc721',
+  //       eventType: ContractEventType.ApprovalForAll,
+  //     } as ContractEvent
+  //   })
+  //   await Promise.all(events.map((e) => store.contract.addContractEvent(e)))
+  // }
 }

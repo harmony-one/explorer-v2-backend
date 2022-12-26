@@ -73,7 +73,8 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
 
     // add related txs we mark them 721 table as all nft
     // todo add to token address
-    const addEventsPromises = contractEvents.map((e) => store.contract.addContractEvent(e))
+    // inserting into contract_events temporarily turned off to reduce the size of the DB
+    const addEventsPromises: never[] = [] // contractEvents.map((e) => store.contract.addContractEvent(e))
 
     const updateAssetPromises = [...addressesToUpdate.values()].map((item) =>
       store.erc1155.setNeedUpdateAsset(item.tokenAddress, item.tokenId)
@@ -94,28 +95,30 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
     )
   }
 
-  const approvalForAllLogs = logs.filter(({topics}) => topics.includes(approvalForAllSignature))
-  if (approvalForAllLogs.length > 0) {
-    const events = approvalForAllLogs.map((log) => {
-      const [topic0, ...topics] = log.topics
-      const {_owner: owner, _operator: operator, _approved: approved} = decodeLog(
-        ContractEventType.ApprovalForAll,
-        log.data,
-        topics
-      )
-      return {
-        address: normalizeAddress(log.address),
-        from: normalizeAddress(owner),
-        to: normalizeAddress(operator),
-        value: (+!!approved).toString(),
-        blockNumber: log.blockNumber,
-        logIndex: log.logIndex,
-        transactionIndex: log.transactionIndex,
-        transactionHash: log.transactionHash,
-        transactionType: 'erc1155',
-        eventType: ContractEventType.ApprovalForAll,
-      } as ContractEvent
-    })
-    await Promise.all(events.map((e) => store.contract.addContractEvent(e)))
-  }
+  // inserting into contract_events temporarily turned off to reduce the size of the DB
+
+  // const approvalForAllLogs = logs.filter(({topics}) => topics.includes(approvalForAllSignature))
+  // if (approvalForAllLogs.length > 0) {
+  //   const events = approvalForAllLogs.map((log) => {
+  //     const [topic0, ...topics] = log.topics
+  //     const {_owner: owner, _operator: operator, _approved: approved} = decodeLog(
+  //       ContractEventType.ApprovalForAll,
+  //       log.data,
+  //       topics
+  //     )
+  //     return {
+  //       address: normalizeAddress(log.address),
+  //       from: normalizeAddress(owner),
+  //       to: normalizeAddress(operator),
+  //       value: (+!!approved).toString(),
+  //       blockNumber: log.blockNumber,
+  //       logIndex: log.logIndex,
+  //       transactionIndex: log.transactionIndex,
+  //       transactionHash: log.transactionHash,
+  //       transactionType: 'erc1155',
+  //       eventType: ContractEventType.ApprovalForAll,
+  //     } as ContractEvent
+  //   })
+  //   await Promise.all(events.map((e) => store.contract.addContractEvent(e)))
+  // }
 }
