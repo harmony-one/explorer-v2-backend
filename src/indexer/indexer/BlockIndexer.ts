@@ -25,6 +25,7 @@ const maxBatchCount = 100
 
 // todo to config
 const blockRange = config.indexer.blockIndexerBlockRange
+const isTraceBlocksEnabled = config.indexer.isBlocksTraceEnabled
 
 const range = (num: number) => Array(num).fill(0)
 
@@ -235,7 +236,9 @@ export class BlockIndexer {
           this.l.debug(`Processing [${from}, ${to}] ${to - from + 1} blocks...`)
 
           const blocks = await getBlocks(from, to)
-          const blocksInternalTxs = await getBlocksTrace(blocks)
+          const blocksInternalTxs = isTraceBlocksEnabled
+            ? await getBlocksTrace(blocks)
+            : [...Array(Math.max(to - from, 1)).fill([])] // Array of empty arrays: [[], [], [], ..., []]
           await addBlocks(blocks)
           await addTransactions(blocks, blocksInternalTxs)
           await addStakingTransactions(blocks)
