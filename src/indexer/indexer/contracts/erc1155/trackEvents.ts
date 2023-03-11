@@ -32,7 +32,6 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
   const transferBatchEvent = getEntryByName('TransferBatch')!.signature
   const transferEventName = ContractEventType.TransferSingle
   const transferEvent = getEntryByName(transferEventName)!.signature
-  const approvalForAllSignature = getEntryByName(ContractEventType.ApprovalForAll)!.signature
 
   const filteredLogs = logs.filter(({topics}) => topics.includes(transferEvent))
   if (filteredLogs.length > 0) {
@@ -42,7 +41,8 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
       .map((log) => {
         const [topic0, ...topics] = log.topics
         const decodedLog = decodeLog(transferEventName, log.data, topics)
-        if (![decodedLog.from, decodedLog.to].includes(zeroAddress)) {
+
+        if (decodedLog.from && decodedLog.to) {
           const tokenAddress = normalizeAddress(log.address) as string
           const from = normalizeAddress(decodedLog.from) as string
           const to = normalizeAddress(decodedLog.to) as string
@@ -52,8 +52,12 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
               ? BigInt(decodedLog.value).toString()
               : undefined
 
-          addressesToUpdate.add({address: from, tokenAddress, tokenId})
-          addressesToUpdate.add({address: to, tokenAddress, tokenId})
+          if (from !== zeroAddress) {
+            addressesToUpdate.add({address: from, tokenAddress, tokenId})
+          }
+          if (to !== zeroAddress) {
+            addressesToUpdate.add({address: to, tokenAddress, tokenId})
+          }
 
           return {
             address: tokenAddress,
