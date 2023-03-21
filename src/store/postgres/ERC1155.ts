@@ -173,15 +173,33 @@ export class PostgresStorageERC1155 implements IStorageERC1155 {
     return res.map(fromSnakeToCamelResponse)
   }
 
-  getTokenAssets = async (address: Address): Promise<IERC721Asset[]> => {
-    const res = await this.query(`select * from erc1155_asset where token_address=$1`, [address])
+  getTokenAssets = async (
+    address: Address,
+    offset: number,
+    limit: number
+  ): Promise<IERC721Asset[]> => {
+    const res = await this.query(
+      `select asset.*, balance.owner_address, balance.amount 
+            from erc1155_asset asset
+            left join erc1155_balance balance
+            on (asset.token_address = balance.token_address and asset.token_id = balance.token_id)
+            where asset.token_address=$1
+            order by created_at desc
+            offset $2
+            limit $3`,
+      [address, offset, limit]
+    )
 
     return res.map(fromSnakeToCamelResponse)
   }
 
   getTokenAssetDetails = async (address: Address, tokenID: string): Promise<IERC721Asset[]> => {
     const res = await this.query(
-      `select * from erc1155_asset where token_address=$1 and token_id=$2`,
+      `select asset.*, balance.owner_address, balance.amount
+            from erc1155_asset asset
+            left join erc1155_balance balance
+            on asset.token_id = balance.token_id 
+            where asset.token_address=$1 and token_id=$2`,
       [address, tokenID]
     )
 

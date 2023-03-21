@@ -104,8 +104,18 @@ export class PostgresStorageERC721 implements IStorageERC721 {
     return res.map(fromSnakeToCamelResponse)
   }
 
-  getTokenAssets = async (address: Address): Promise<IERC721Asset[]> => {
-    const res = await this.query(`select * from erc721_asset where token_address=$1`, [address])
+  getTokenAssets = async (
+    address: Address,
+    offset: number,
+    limit: number
+  ): Promise<IERC721Asset[]> => {
+    const res = await this.query(
+      `select * from erc721_asset where token_address=$1
+           order by created_at desc
+           offset $2
+           limit $3`,
+      [address]
+    )
 
     return res.map(fromSnakeToCamelResponse)
   }

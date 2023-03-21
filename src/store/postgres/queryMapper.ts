@@ -42,6 +42,7 @@ export const mapNaming: Record<string, string> = {
   event_type: 'eventType',
   implementation_address: 'implementationAddress',
   updated_at: 'updatedAt',
+  created_at: 'createdAt',
 }
 
 export const mapNamingReverse: Record<string, string> = Object.keys(mapNaming).reduce((a, k) => {
