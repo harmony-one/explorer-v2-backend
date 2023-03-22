@@ -28,10 +28,16 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
 
   const filteredLogs = logs.filter(({topics}) => topics.includes(transferSignature))
   if (filteredLogs.length > 0) {
-    const addressesToUpdate = new Set<{address: string; tokenAddress: string; tokenId: string}>() // unique addresses of senders and recipients
+    const addressesToUpdate = new Set<{
+      address: string
+      tokenAddress: string
+      tokenId: string
+      blockNumber: string
+    }>() // unique addresses of senders and recipients
 
     const contractEvents = filteredLogs
       .map((log) => {
+        const {blockNumber} = log
         const [topic0, ...topics] = log.topics
         const decodedLog = decodeLog(ContractEventType.Transfer, log.data, topics)
         if (![decodedLog.from, decodedLog.to].includes(zeroAddress)) {
@@ -44,8 +50,8 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
               ? BigInt(decodedLog.value).toString()
               : undefined
 
-          addressesToUpdate.add({address: from, tokenAddress, tokenId})
-          addressesToUpdate.add({address: to, tokenAddress, tokenId})
+          addressesToUpdate.add({address: from, tokenAddress, tokenId, blockNumber})
+          addressesToUpdate.add({address: to, tokenAddress, tokenId, blockNumber})
 
           return {
             address: tokenAddress,
@@ -67,7 +73,7 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
     // inserting into contract_events temporarily turned off to reduce the size of the DB
     const addEventsPromises: never[] = [] // contractEvents.map((e) => store.contract.addContractEvent(e))
     const updateAssetPromises = [...addressesToUpdate.values()].map((item) =>
-      store.erc721.setNeedUpdateAsset(item.address, item.tokenAddress, item.tokenId)
+      store.erc721.addAsset(item.address, item.tokenAddress, item.tokenId, item.blockNumber)
     )
 
     await Promise.all(updateAssetPromises.concat(addEventsPromises))

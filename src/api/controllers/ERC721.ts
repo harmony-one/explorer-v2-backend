@@ -48,6 +48,23 @@ export async function getTokenERC721Assets(
   return await withCache(
     [shardID, 'getTokenERC721Assets', arguments],
     () => stores[shardID].erc721.getTokenAssets(address, offset, limit),
-    1000 * 60 * 5
+    1000 * 60 * 10
+  )
+}
+
+export async function getTokenERC721AssetDetails(
+  shardID: ShardID,
+  address: Address,
+  tokenID: string
+): Promise<IERC20Balance[] | null> {
+  validator({
+    shardID: isShard(shardID),
+    address: isAddress(address),
+  })
+
+  return await withCache(
+    [shardID, 'getTokenERC721AssetDetails', arguments],
+    () => stores[shardID].erc721.getTokenAssetDetails(address, tokenID),
+    1000 * 60 * 10
   )
 }

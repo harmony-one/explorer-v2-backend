@@ -62,15 +62,20 @@ export class PostgresStorageERC721 implements IStorageERC721 {
     return res.map(fromSnakeToCamelResponse)
   }
 
-  setNeedUpdateAsset = async (owner: Address, token: Address, tokenID: IERC721TokenID) => {
+  addAsset = async (
+    owner: Address,
+    token: Address,
+    tokenID: IERC721TokenID,
+    blockNumber: string
+  ) => {
     return this.query(
       `
-            insert into erc721_asset(owner_address, token_address, token_id, need_update) 
-                values($1, $2, $3, true)
+            insert into erc721_asset(owner_address, token_address, token_id, block_number, need_update) 
+                values($1, $2, $3, $4, true)
                 on conflict(token_address, token_id)
                 do update set need_update = true;
           `,
-      [owner, token, tokenID]
+      [owner, token, tokenID, blockNumber]
     )
   }
 
@@ -127,5 +132,15 @@ export class PostgresStorageERC721 implements IStorageERC721 {
     )
 
     return res[0].count
+  }
+
+  getTokenAssetDetails = async (address: Address, tokenId: string): Promise<IERC721Asset[]> => {
+    const res = await this.query(
+      `select * from erc721_asset where token_address=$1 and token_id=$2`,
+      [address, tokenId]
+    )
+
+    const mapped = res.map(fromSnakeToCamelResponse)
+    return mapped[0]
   }
 }

@@ -74,15 +74,15 @@ export class PostgresStorageERC1155 implements IStorageERC1155 {
     return res.map(fromSnakeToCamelResponse)
   }
 
-  setNeedUpdateAsset = async (token: Address, tokenID: IERC721TokenID) => {
+  addAsset = async (token: Address, tokenID: IERC721TokenID, blockNumber: string) => {
     return this.query(
       `
-            insert into erc1155_asset(token_address, token_id, need_update)
-                values($1, $2, true)
+            insert into erc1155_asset(token_address, token_id, block_number, need_update)
+                values($1, $2, $3, true)
                 on conflict(token_address, token_id)
                 do update set need_update = true;
           `,
-      [token, tokenID]
+      [token, tokenID, blockNumber]
     )
   }
 
@@ -184,7 +184,7 @@ export class PostgresStorageERC1155 implements IStorageERC1155 {
             left join erc1155_balance balance
             on (asset.token_address = balance.token_address and asset.token_id = balance.token_id)
             where asset.token_address=$1
-            order by created_at desc
+            order by block_number desc
             offset $2
             limit $3`,
       [address, offset, limit]
@@ -199,7 +199,7 @@ export class PostgresStorageERC1155 implements IStorageERC1155 {
             from erc1155_asset asset
             left join erc1155_balance balance
             on asset.token_id = balance.token_id 
-            where asset.token_address=$1 and token_id=$2`,
+            where asset.token_address=$1 and asset.token_id=$2`,
       [address, tokenID]
     )
 

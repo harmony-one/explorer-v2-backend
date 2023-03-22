@@ -310,7 +310,7 @@ create table if not exists erc721_asset
     meta                     jsonb,
     need_update              boolean,
     last_update_block_number bigint,
-    created_at               timestamp default now(),
+    block_number             bigint default 0,
     unique (token_address, token_id)
 );
 
@@ -341,7 +341,7 @@ create table if not exists erc1155_asset
     meta                     jsonb,
     need_update              boolean,
     last_update_block_number bigint,
-    created_at               timestamp default now(),
+    block_number             bigint default 0,
     unique (token_address, token_id)
 );
 
