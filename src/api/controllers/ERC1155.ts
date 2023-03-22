@@ -57,14 +57,14 @@ export async function getTokenERC1155Assets(
   validator({
     shardID: isShard(shardID),
     address: isAddress(address),
-    // offset: isOffset(offset),
-    // limit: isLimit(limit),
+    offset: isOffset(offset),
+    limit: isLimit(limit, 1000),
   })
 
   return await withCache(
     [shardID, 'getTokenERC1155Assets', arguments],
     () => stores[shardID].erc1155.getTokenAssets(address, offset, limit),
-    1000 * 60 * 5
+    1000 * 60 * 10
   )
 }
 
