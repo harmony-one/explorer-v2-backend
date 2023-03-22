@@ -116,10 +116,10 @@ export class PostgresStorageERC721 implements IStorageERC721 {
   ): Promise<IERC721Asset[]> => {
     const res = await this.query(
       `select * from erc721_asset where token_address=$1
-           order by created_at desc
+           order by block_number desc
            offset $2
            limit $3`,
-      [address]
+      [address, offset, limit]
     )
 
     return res.map(fromSnakeToCamelResponse)

@@ -52,13 +52,13 @@ export async function getTokenERC1155Assets(
   shardID: ShardID,
   address: Address,
   offset = 0,
-  limit = 1000
+  limit = 10000
 ): Promise<IERC20Balance[] | null> {
   validator({
     shardID: isShard(shardID),
     address: isAddress(address),
     offset: isOffset(offset),
-    limit: isLimit(limit, 1000),
+    limit: isLimit(limit, 10000),
   })
 
   return await withCache(
