@@ -35,10 +35,16 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
 
   const filteredLogs = logs.filter(({topics}) => topics.includes(transferEvent))
   if (filteredLogs.length > 0) {
-    const addressesToUpdate = new Set<{address: string; tokenAddress: string; tokenId: string}>() // unique addresses of senders and recipients
+    const addressesToUpdate = new Set<{
+      address: string
+      tokenAddress: string
+      tokenId: string
+      blockNumber: string
+    }>() // unique addresses of senders and recipients
 
     const contractEvents = filteredLogs
       .map((log) => {
+        const {blockNumber} = log
         const [topic0, ...topics] = log.topics
         const decodedLog = decodeLog(transferEventName, log.data, topics)
 
@@ -53,10 +59,10 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
               : undefined
 
           if (from !== zeroAddress) {
-            addressesToUpdate.add({address: from, tokenAddress, tokenId})
+            addressesToUpdate.add({address: from, tokenAddress, tokenId, blockNumber})
           }
           if (to !== zeroAddress) {
-            addressesToUpdate.add({address: to, tokenAddress, tokenId})
+            addressesToUpdate.add({address: to, tokenAddress, tokenId, blockNumber})
           }
 
           return {
@@ -81,7 +87,7 @@ export const trackEvents = async (store: PostgresStorage, logs: Log[], {token}: 
     const addEventsPromises: never[] = [] // contractEvents.map((e) => store.contract.addContractEvent(e))
 
     const updateAssetPromises = [...addressesToUpdate.values()].map((item) =>
-      store.erc1155.setNeedUpdateAsset(item.tokenAddress, item.tokenId)
+      store.erc1155.addAsset(item.tokenAddress, item.tokenId, item.blockNumber)
     )
 
     const updateAssetBalancesPromises = [...addressesToUpdate.values()].map((item) =>
