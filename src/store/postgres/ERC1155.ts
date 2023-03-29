@@ -200,7 +200,6 @@ export class PostgresStorageERC1155 implements IStorageERC1155 {
                  LIMIT 1
             ) balance on true
             where asset.token_address=$1
-            and asset.meta is not null
             order by block_number desc
             offset $2
             limit $3`,
