@@ -1,158 +1,168 @@
 import {logger} from 'src/logger'
 import LoggerModule from 'zerg/dist/LoggerModule'
 import {stores} from 'src/store'
-import {EntityIterator} from 'src/indexer/utils/EntityIterator'
-import {tasks} from './tasks'
-import {ContractTracker} from 'src/indexer/indexer/contracts/types'
 import {PostgresStorage} from 'src/store/postgres'
-import {EntityIteratorEntities} from 'src/indexer/utils/EntityIterator/entities'
-import {ShardID} from 'src/types'
+import {
+  Contract,
+  ContractEventType,
+  ContractType,
+  FilterEntry,
+  IERC1155,
+  Log,
+  ShardID,
+} from 'src/types'
+import {ABIFactory as ABIFactoryERC1155} from 'src/indexer/indexer/contracts/erc1155/ABI'
+import {ABIFactory as ABIFactoryERC721} from 'src/indexer/indexer/contracts/erc721/ABI'
+import {ABIFactory as ABIFactoryERC20} from 'src/indexer/indexer/contracts/erc20/ABI'
+import {getByIPFSHash} from 'src/indexer/utils/ipfs'
+import {normalizeAddress} from 'src/utils/normalizeAddress'
 
-const syncingIntervalMs = 1000 * 60 * 5
+const syncingIntervalMs = 1000 * 30
+
+const ERC1155ExpectedMethods = [
+  'TransferSingle',
+  'TransferBatch',
+  'owner',
+  'balanceOfBatch',
+  'contractURI',
+]
 
 export class ContractIndexer {
   readonly l: LoggerModule
-  readonly ls: Record<string, LoggerModule>
   readonly store: PostgresStorage
+  readonly contractType: string
+  readonly shardID: ShardID
 
-  constructor(shardID: ShardID) {
+  constructor(shardID: ShardID, contractType: ContractType) {
+    this.shardID = shardID
+    this.contractType = contractType
     this.store = stores[shardID]
-    this.l = logger(module, ':Shard' + shardID)
-    this.l.info(`Created [${tasks.map((t) => t.name).join(', ')}]`)
-    this.ls = tasks
-      .map((t) => t.name)
-      .reduce((o, name) => {
-        o[name] = logger(module, name)
-        return o
-      }, {} as Record<string, LoggerModule>)
+    this.l = logger(module, `:Shard ${shardID} ${contractType}`)
   }
 
-  // iterate all contract entries stored in db and add records for tracked contracts erc20, erc721, etc
-  private addContracts = async (task: ContractTracker<any>) => {
-    const latestSyncedBlockIndexerBlock = await this.store.indexer.getLastIndexedBlockNumberByName(
-      'blocks'
-    )
+  private sleep(timeout: number) {
+    return new Promise((resolve) => setTimeout(resolve, timeout))
+  }
 
-    const latestSyncedBlock = await this.store.indexer.getLastIndexedBlockNumberByName(
-      `${task.name}_contracts`
-    )
-    const startBlock = latestSyncedBlock && latestSyncedBlock > 0 ? latestSyncedBlock + 1 : 0
+  private async parseERC1155(contract: Contract) {
+    const {hasAllSignatures, callAll} = ABIFactoryERC1155(this.shardID)
 
-    const {batchSize, process} = task.addContract
-    this.ls[task.name].info(`Syncing contracts from block ${startBlock}`)
-    const contractsIterator = EntityIterator(this.store, 'contracts', {
-      batchSize,
-      index: startBlock,
-    })
-
-    for await (const contracts of contractsIterator) {
-      await Promise.all(contracts.map((c) => process(this.store, c)))
-
-      if (contracts.length) {
-        const syncedToBlock = +contracts[contracts.length - 1].blockNumber
-        await this.store.indexer.setLastIndexedBlockNumberByName(
-          `${task.name}_contracts`,
-          syncedToBlock
-        )
-      }
+    if (!hasAllSignatures(ERC1155ExpectedMethods, contract.bytecode)) {
+      return
     }
 
-    await this.store.indexer.setLastIndexedBlockNumberByName(
-      `${task.name}_contracts`,
-      latestSyncedBlockIndexerBlock
-    )
-  }
+    let meta = {
+      name: 'HRC1155',
+      symbol: 'HRC1155',
+    }
+    let metaJSON = JSON.stringify({})
 
-  // track logs for specific address
-  trackEvents = async (task: ContractTracker<any>) => {
-    const l = this.ls[task.name] // .info(`Syncing logs from block ${startBlock}`)
-
-    const latestSyncedBlockIndexerBlock = await this.store.indexer.getLastIndexedBlockNumberByName(
-      'logs'
-    )
-
-    const tokensIterator = EntityIterator(
-      this.store,
-      (task.tableName as EntityIteratorEntities) || (task.name as EntityIteratorEntities),
-      {
-        batchSize: 1,
-        index: 0,
-      }
-    )
-
-    const {batchSize, process} = task.trackEvents
-
-    for await (const tokens of tokensIterator) {
-      if (!tokens.length) {
-        break
-      }
-
-      const token = tokens[0]
-
-      const latestSyncedBlock = await task.trackEvents.getLastSyncedBlock(this.store, token)
-      const startBlock = latestSyncedBlock && latestSyncedBlock > 0 ? latestSyncedBlock + 1 : 0
-      let latestSyncedTokenBlock = latestSyncedBlock
-
-      const logsIterator = EntityIterator(this.store, 'logs', {
-        batchSize,
-        index: startBlock,
-        address: token.address,
-      })
-
-      l.info(`Getting logs for "${token.name}" ${token.address} from block ${startBlock}`)
-
-      for await (const logs of logsIterator) {
-        if (!logs.length) {
-          continue
-        }
-
-        l.info(`Processing ${logs.length} logs`)
+    try {
+      const params = await callAll(this.shardID, contract.address, ['contractURI'])
+      if (params.contractURI) {
         try {
-          await process(this.store, logs, {token})
-
-          latestSyncedTokenBlock = Math.max(
-            latestSyncedTokenBlock,
-            logs.reduce((acc, o) => (acc > o.blockNumber ? acc : o.blockNumber), 0)
+          meta = await getByIPFSHash(params.contractURI)
+          meta.name = meta.name.replaceAll('\u0000', '')
+          meta.symbol = meta.symbol.replaceAll('\u0000', '')
+          metaJSON = JSON.stringify(meta)
+        } catch (e) {
+          this.l.info(
+            `Cannot get metadata for contract ${contract.address}, uri "${params.contractURI}"`,
+            e.message
           )
-          if (latestSyncedTokenBlock > 0) {
-            await task.trackEvents.setLastSyncedBlock(this.store, token, latestSyncedTokenBlock)
-          }
-        } catch (err) {
-          this.ls[task.name].warn(`Syncing logs for ${token.address} failed`, {
-            token,
-            err: err.message || err,
-          })
         }
       }
 
-      await task.trackEvents.setLastSyncedBlock(this.store, token, latestSyncedBlockIndexerBlock)
+      const erc1155: IERC1155 = {
+        address: contract.address,
+        name: meta.name,
+        symbol: meta.symbol,
+        lastUpdateBlockNumber: contract.blockNumber,
+        meta: metaJSON,
+        contractURI: params.contractURI,
+      }
+      // await this.store.erc1155.addERC1155(erc1155)
+
+      this.l.info(`Found new ERC1155 contract "${erc1155.name}" at block ${contract.blockNumber}`)
+      return erc1155
+    } catch (e) {
+      this.l.info(`Failed to get contract info`, e.message || e)
     }
+  }
+
+  private async addContracts(contracts: Contract[]) {
+    for (let i = 0; i < contracts.length; i++) {
+      const contract = contracts[i]
+      const erc1155 = await this.parseERC1155(contract)
+    }
+  }
+
+  private async parseEventsErc1155(logs: Log[]) {
+    const contracts = await this.store.erc1155.getAllERC1155()
+    const erc1155Logs = logs.filter((log) =>
+      contracts.find((contract) => contract.address === log.address)
+    )
+    const addressesToUpdate = new Set<{
+      address: string
+      tokenAddress: string
+      tokenId: string
+      blockNumber: string
+    }>()
+    const {decodeLog, getEntryByName} = ABIFactoryERC1155(this.shardID)
+    const transferSingleEvent = getEntryByName(ContractEventType.TransferSingle)!.signature
+
+    const transferSingleLogs = erc1155Logs.filter(({topics}) =>
+      topics.includes(transferSingleEvent)
+    )
+
+    transferSingleLogs.forEach((log) => {
+      const {blockNumber} = log
+      const [topic0, ...topics] = log.topics
+      const decodedLog = decodeLog(ContractEventType.TransferSingle, log.data, topics)
+      if (decodedLog) {
+        const {id: tokenId} = decodedLog
+        const tokenAddress = normalizeAddress(log.address) as string
+        const from = normalizeAddress(decodedLog.from) as string
+        const to = normalizeAddress(decodedLog.to) as string
+        if (from) {
+          addressesToUpdate.add({address: from, tokenAddress, tokenId, blockNumber})
+        }
+        if (to) {
+          addressesToUpdate.add({address: to, tokenAddress, tokenId, blockNumber})
+        }
+      }
+    })
+  }
+
+  private async parseEvents(logs: Log[]) {
+    await this.parseEventsErc1155(logs)
   }
 
   loop = async () => {
+    const startBlockNumber = 39534690
+    const blocksRange = 1000
+
+    const baseFilters: FilterEntry[] = [
+      {
+        property: 'block_number',
+        type: 'gte',
+        value: startBlockNumber,
+      },
+      {
+        property: 'block_number',
+        type: 'lt',
+        value: startBlockNumber + blocksRange,
+      },
+    ]
+
+    const contracts = await this.store.contract.getContracts({filters: baseFilters})
+
     // todo only when blocks synced
+    // const currentLogsHeight = await this.store.indexer.getLastIndexedBlockNumberByName('logs')
+    const logs = await this.store.log.getLogs({filters: baseFilters})
 
-    // todo in same time
-    for (const task of tasks) {
-      const l = this.ls[task.name]
-      try {
-        l.info('Starting...')
-
-        if (typeof task.addContract.process === 'function') {
-          await this.addContracts(task)
-        }
-
-        if (typeof task.trackEvents.process === 'function') {
-          await this.trackEvents(task)
-        }
-
-        if (typeof task.onFinish === 'function') {
-          await task.onFinish(this.store)
-        }
-      } catch (err) {
-        l.warn('Batch failed', err.message || err)
-      }
-    }
-    setTimeout(this.loop, syncingIntervalMs)
+    await this.addContracts(contracts)
+    await this.parseEvents(logs)
+    await this.sleep(syncingIntervalMs)
   }
 }

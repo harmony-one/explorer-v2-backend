@@ -52,14 +52,14 @@ export const indexer = async () => {
   }
 
   if (config.indexer.isSyncingContractsEnabled && config.indexer.shards.includes(0)) {
-    const contractIndexer0 = new ContractIndexer(0)
+    const contractIndexer0 = new ContractIndexer(0, 'erc1155')
     contractIndexer0.loop()
   }
 
-  if (config.indexer.isSyncingContractsEnabledShard1 && config.indexer.shards.includes(1)) {
-    const contractIndexer1 = new ContractIndexer(1)
-    contractIndexer1.loop()
-  }
+  // if (config.indexer.isSyncingContractsEnabledShard1 && config.indexer.shards.includes(1)) {
+  //   const contractIndexer1 = new ContractIndexer(1)
+  //   contractIndexer1.loop()
+  // }
 }
 
 const checkChainID = async (shardID: ShardID) => {
