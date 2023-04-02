@@ -3,11 +3,14 @@ import LoggerModule from 'zerg/dist/LoggerModule'
 import {stores} from 'src/store'
 import {PostgresStorage} from 'src/store/postgres'
 import {
+  Address,
   Contract,
   ContractEventType,
   ContractType,
+  Filter,
   FilterEntry,
   IERC1155,
+  IERC721TokenID,
   Log,
   ShardID,
 } from 'src/types'
@@ -51,20 +54,24 @@ export class ContractIndexer {
       return
     }
 
-    let meta = {
-      name: 'HRC1155',
-      symbol: 'HRC1155',
-    }
-    let metaJSON = JSON.stringify({})
+    let contractName = 'HRC1155'
+    let contractSymbol = 'HRC1155'
+    let meta: Record<string, string> = {}
 
     try {
       const params = await callAll(this.shardID, contract.address, ['contractURI'])
       if (params.contractURI) {
         try {
-          meta = await getByIPFSHash(params.contractURI)
-          meta.name = meta.name.replaceAll('\u0000', '')
-          meta.symbol = meta.symbol.replaceAll('\u0000', '')
-          metaJSON = JSON.stringify(meta)
+          const metadata = await getByIPFSHash(params.contractURI)
+          meta = {...metadata}
+          if (metadata.name) {
+            contractName = metadata.name.replaceAll('\u0000', '')
+            meta.name = contractName
+          }
+          if (metadata.symbol) {
+            contractSymbol = metadata.symbol.replaceAll('\u0000', '')
+            meta.symbol = contractSymbol
+          }
         } catch (e) {
           this.l.info(
             `Cannot get metadata for contract ${contract.address}, uri "${params.contractURI}"`,
@@ -75,15 +82,16 @@ export class ContractIndexer {
 
       const erc1155: IERC1155 = {
         address: contract.address,
-        name: meta.name,
-        symbol: meta.symbol,
+        name: contractName,
+        symbol: contractSymbol,
         lastUpdateBlockNumber: contract.blockNumber,
-        meta: metaJSON,
+        meta: JSON.stringify(meta),
         contractURI: params.contractURI,
       }
-      // await this.store.erc1155.addERC1155(erc1155)
-
-      this.l.info(`Found new ERC1155 contract "${erc1155.name}" at block ${contract.blockNumber}`)
+      await this.store.erc1155.addERC1155(erc1155)
+      this.l.info(
+        `Block ${contract.blockNumber}: found new ERC1155 contract ${erc1155.address}, name: "${erc1155.name}"`
+      )
       return erc1155
     } catch (e) {
       this.l.info(`Failed to get contract info`, e.message || e)
@@ -115,6 +123,8 @@ export class ContractIndexer {
       topics.includes(transferSingleEvent)
     )
 
+    this.l.info(`Parse events:  found ${transferSingleLogs.length} transfer single logs`)
+
     transferSingleLogs.forEach((log) => {
       const {blockNumber} = log
       const [topic0, ...topics] = log.topics
@@ -132,6 +142,104 @@ export class ContractIndexer {
         }
       }
     })
+
+    const updateAssetPromises = [...addressesToUpdate.values()].map((item) =>
+      this.store.erc1155.addAsset(item.tokenAddress, item.tokenId, item.blockNumber)
+    )
+
+    const updateAssetBalancesPromises = [...addressesToUpdate.values()].map((item) =>
+      this.store.erc1155.setNeedUpdateBalance(item.address, item.tokenAddress, item.tokenId)
+    )
+
+    await Promise.all([...updateAssetPromises, ...updateAssetBalancesPromises])
+    this.l.info(
+      `Parse events: ${updateAssetPromises.length} token owners balance needs to be updated`
+    )
+  }
+
+  private async updateBalances() {
+    const filter: Filter = {
+      limit: 10,
+      offset: 0,
+      filters: [
+        {
+          property: 'needUpdate',
+          type: 'eq',
+          value: 'true',
+        },
+      ],
+    }
+
+    const {call} = ABIFactoryERC1155(this.shardID)
+
+    this.l.info(`Updating assets`)
+
+    let count = 0
+    const tokensForUpdate = new Set<Address>()
+
+    // since we update entries, iterator doesnt work
+    while (true) {
+      const assetsNeedUpdate = await this.store.erc1155.getAssets(filter)
+      if (!assetsNeedUpdate.length) {
+        break
+      }
+      this.l.info(`Updating ${assetsNeedUpdate.length} assets`)
+
+      const promises = assetsNeedUpdate.map(
+        async ({meta: metaData, tokenAddress, tokenID, tokenURI = ''}) => {
+          // todo dont fetch meta if already there
+          // @ts-ignore
+          if (metaData && metaData.name) {
+            // todo tmp line
+            await this.store.erc1155.updateAsset(
+              tokenAddress,
+              tokenURI,
+              metaData,
+              tokenID as IERC721TokenID
+            )
+            return
+          }
+
+          tokensForUpdate.add(tokenAddress)
+
+          const uri = await call('uri', [tokenID], tokenAddress)
+          let meta = {} as any
+
+          try {
+            // todo validate size
+            meta = await getByIPFSHash(uri)
+          } catch (e) {
+            this.l.debug(`Failed to fetch meta from ${uri} for token ${tokenAddress} ${tokenID}`)
+          }
+
+          await this.store.erc1155.updateAsset(tokenAddress, uri, meta, tokenID as IERC721TokenID)
+        }
+      )
+      await Promise.all(promises)
+      count += assetsNeedUpdate.length
+    }
+
+    // const promises = [...tokensForUpdate.values()].map(async (token) => {
+    //   const holders = await this.store.erc1155.getHoldersCount(token)
+    //
+    //   // todo total supply
+    //   const totalSupply = 0 // await call('totalSupply', [], token)
+    //   // todo tx count ?
+    //
+    //   const erc1155 = {
+    //     holders: +holders || 0,
+    //     totalSupply: totalSupply,
+    //     transactionCount: 0,
+    //     address: token,
+    //   }
+    //
+    //   // @ts-ignore
+    //   return store.erc1155.updateERC1155(erc1155)
+    // })
+    //
+    // await Promise.all(promises)
+
+    this.l.info(`Updated ${count} assets`)
   }
 
   private async parseEvents(logs: Log[]) {
@@ -140,7 +248,7 @@ export class ContractIndexer {
 
   loop = async () => {
     const startBlockNumber = 39534690
-    const blocksRange = 1000
+    const blocksRange = 10000
 
     const baseFilters: FilterEntry[] = [
       {
@@ -163,6 +271,6 @@ export class ContractIndexer {
 
     await this.addContracts(contracts)
     await this.parseEvents(logs)
-    await this.sleep(syncingIntervalMs)
+    await this.updateBalances()
   }
 }
