@@ -2,6 +2,7 @@ import {logger} from 'src/logger'
 import LoggerModule from 'zerg/dist/LoggerModule'
 import {stores} from 'src/store'
 import {PostgresStorage} from 'src/store/postgres'
+import nodeFetch from 'node-fetch'
 import {
   Address,
   Contract,
@@ -10,18 +11,19 @@ import {
   Filter,
   FilterEntry,
   IERC1155,
+  IERC20,
   IERC721,
   IERC721TokenID,
   Log,
   ShardID,
 } from 'src/types'
-import {ABIFactory as ABIFactoryERC1155} from 'src/indexer/indexer/contracts/erc1155/ABI'
-import {ABIFactory as ABIFactoryERC721} from 'src/indexer/indexer/contracts/erc721/ABI'
 import {getByIPFSHash} from 'src/indexer/utils/ipfs'
 import {normalizeAddress} from 'src/utils/normalizeAddress'
 import {zeroAddress} from 'src/indexer/indexer/contracts/utils/zeroAddress'
 import {config} from 'src/config'
-import nodeFetch from 'node-fetch'
+import {ABIFactory as ABIFactoryERC1155} from 'src/indexer/indexer/contracts/erc1155/ABI'
+import {ABIFactory as ABIFactoryERC721} from 'src/indexer/indexer/contracts/erc721/ABI'
+import {ABIFactory as ABIFactoryERC20} from 'src/indexer/indexer/contracts/erc20/ABI'
 
 const updateTokensFilter: Filter = {
   limit: 10,
@@ -34,6 +36,18 @@ const updateTokensFilter: Filter = {
     },
   ],
 }
+
+const ERC20ExpectedMethods = [
+  'Transfer',
+  'Approval',
+  'totalSupply',
+  'decimals',
+  'transfer',
+  'balanceOf',
+  'symbol',
+  'name',
+  'approve',
+]
 
 const ERC721ExpectedMethods = [
   'Transfer',
@@ -148,11 +162,40 @@ export class ContractIndexer {
     }
   }
 
-  addContract(contract: Contract) {
+  private async addERC20Contract(contract: Contract) {
+    const {hasAllSignatures, callAll} = ABIFactoryERC20(this.shardID)
+    if (!hasAllSignatures(ERC20ExpectedMethods, contract.bytecode)) {
+      return
+    }
+    try {
+      const params = await callAll(this.shardID, contract.address, ['symbol', 'name', 'decimals'])
+
+      const erc20: IERC20 = {
+        address: contract.address,
+        decimals: +params.decimals,
+        name: params.name.replaceAll('\u0000', ''),
+        symbol: params.symbol.replaceAll('\u0000', ''),
+        lastUpdateBlockNumber: contract.blockNumber,
+      }
+
+      await this.store.erc20.addERC20(erc20)
+      this.l.info(
+        `Found new ERC20 contract "${erc20.name}" ${erc20.address} at block ${contract.blockNumber}`
+      )
+      return true
+    } catch (err) {
+      this.l.debug(`Failed to get contract ${contract.address} info`, err.message || err)
+      return
+    }
+  }
+
+  private async addContract(contract: Contract) {
     if (this.contractType === 'erc1155') {
       return this.addERC1155Contract(contract)
     } else if (this.contractType === 'erc721') {
       return this.addERC721Contract(contract)
+    } else if (this.contractType === 'erc20') {
+      return this.addERC20Contract(contract)
     }
   }
 
@@ -242,11 +285,45 @@ export class ContractIndexer {
     return transferLogs.length
   }
 
+  private async parseEventsERC20(logs: Log[]) {
+    const {getEntryByName, decodeLog} = ABIFactoryERC20(this.shardID)
+    const transferSignature = getEntryByName(ContractEventType.Transfer)!.signature
+    const transferLogs = logs.filter(({topics}) => topics.includes(transferSignature))
+
+    if (transferLogs.length > 0) {
+      const addressesToUpdate = new Set<{address: string; tokenAddress: string}>() // unique addresses of senders and recipients
+      transferLogs.forEach((log) => {
+        const [topic0, ...topics] = log.topics
+        const decodedLog = decodeLog(ContractEventType.Transfer, log.data, topics)
+        const tokenAddress = normalizeAddress(log.address) as string
+        const from = normalizeAddress(decodedLog.from) as string
+        const to = normalizeAddress(decodedLog.to) as string
+
+        if (from !== zeroAddress) {
+          addressesToUpdate.add({address: from, tokenAddress})
+        }
+        if (to !== zeroAddress) {
+          addressesToUpdate.add({address: to, tokenAddress})
+        }
+      })
+
+      const updateBalancesPromises = [
+        ...addressesToUpdate.values(),
+      ].map(({address, tokenAddress}) =>
+        this.store.erc20.setNeedUpdateBalance(address, tokenAddress)
+      )
+      await Promise.all(updateBalancesPromises)
+    }
+    return transferLogs.length
+  }
+
   private async parseEvents(logs: Log[]) {
     if (this.contractType === 'erc1155') {
       return this.parseEventsERC1155(logs)
     } else if (this.contractType === 'erc721') {
       return this.parseEventsERC721(logs)
+    } else if (this.contractType === 'erc20') {
+      return this.parseEventsERC20(logs)
     }
   }
 
@@ -255,7 +332,56 @@ export class ContractIndexer {
       return this.updateMetadataERC1155()
     } else if (this.contractType === 'erc721') {
       return this.updateMetadataERC721()
+    } else if (this.contractType === 'erc20') {
+      return this.updateMetadataERC20()
     }
+  }
+
+  private async updateMetadataERC20() {
+    const {call} = ABIFactoryERC20(this.shardID)
+    let count = 0
+    const tokensForUpdate = new Set<Address>()
+
+    // since we update entries, iterator doesnt work
+    while (true) {
+      const balancesNeedUpdate = await this.store.erc20.getBalances({
+        ...updateTokensFilter,
+        limit: 100,
+      })
+      if (!balancesNeedUpdate.length) {
+        break
+      }
+
+      const promises = balancesNeedUpdate.map(({ownerAddress, tokenAddress}) => {
+        tokensForUpdate.add(tokenAddress)
+
+        return call('balanceOf', [ownerAddress], tokenAddress).then((balance) =>
+          this.store.erc20.updateBalance(ownerAddress, tokenAddress, balance)
+        )
+      })
+      await Promise.all(promises)
+      count += balancesNeedUpdate.length
+    }
+
+    const promises = [...tokensForUpdate.values()].map(async (token) => {
+      const holders = await this.store.erc20.getHoldersCount(token)
+      const totalSupply = await call('totalSupply', [], token)
+      const circulatingSupply = await this.store.erc20.getERC20CirculatingSupply(token)
+
+      const erc20 = {
+        holders: +holders || 0,
+        totalSupply: totalSupply,
+        circulatingSupply,
+        transactionCount: 0,
+        address: token,
+      }
+
+      // @ts-ignore
+      return this.store.erc20.updateERC20(erc20)
+    })
+
+    await Promise.all(promises)
+    return count
   }
 
   private async updateMetadataERC721() {
