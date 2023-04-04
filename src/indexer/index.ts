@@ -52,7 +52,7 @@ export const indexer = async () => {
   }
 
   if (config.indexer.isSyncingContractsEnabled && config.indexer.shards.includes(0)) {
-    const contractIndexer0 = new ContractIndexer(0, 'erc1155')
+    const contractIndexer0 = new ContractIndexer(0, 'erc721')
     contractIndexer0.loop()
   }
 

@@ -10,15 +10,18 @@ import {
   Filter,
   FilterEntry,
   IERC1155,
+  IERC721,
   IERC721TokenID,
   Log,
   ShardID,
 } from 'src/types'
 import {ABIFactory as ABIFactoryERC1155} from 'src/indexer/indexer/contracts/erc1155/ABI'
+import {ABIFactory as ABIFactoryERC721} from 'src/indexer/indexer/contracts/erc721/ABI'
 import {getByIPFSHash} from 'src/indexer/utils/ipfs'
 import {normalizeAddress} from 'src/utils/normalizeAddress'
 import {zeroAddress} from 'src/indexer/indexer/contracts/utils/zeroAddress'
 import {config} from 'src/config'
+import nodeFetch from 'node-fetch'
 
 const updateTokensFilter: Filter = {
   limit: 10,
@@ -31,6 +34,20 @@ const updateTokensFilter: Filter = {
     },
   ],
 }
+
+const ERC721ExpectedMethods = [
+  'Transfer',
+  'Approval',
+  'totalSupply',
+  'ownerOf',
+  'tokenURI',
+  'transferFrom',
+  'safeTransferFrom',
+  'balanceOf',
+  'symbol',
+  'name',
+  'approve',
+]
 
 const ERC1155ExpectedMethods = [
   'TransferSingle',
@@ -53,7 +70,7 @@ export class ContractIndexer {
     this.l = logger(module, `:Shard ${shardID} ${contractType}`)
   }
 
-  private async parseContract(contract: Contract) {
+  private async addERC1155Contract(contract: Contract) {
     const {hasAllSignatures, callAll} = ABIFactoryERC1155(this.shardID)
 
     if (!hasAllSignatures(ERC1155ExpectedMethods, contract.bytecode)) {
@@ -96,11 +113,46 @@ export class ContractIndexer {
       }
       await this.store.erc1155.addERC1155(erc1155)
       this.l.info(
-        `Block ${contract.blockNumber}: found new ERC1155 contract ${erc1155.address}, name: "${erc1155.name}"`
+        `Found new ERC1155 contract "${erc1155.name}" ${erc1155.address} at block ${contract.blockNumber}"`
       )
-      return erc1155
+      return true
     } catch (e) {
       this.l.info(`Failed to get contract info`, e.message || e)
+    }
+  }
+
+  private async addERC721Contract(contract: Contract) {
+    const {hasAllSignatures, callAll} = ABIFactoryERC721(this.shardID)
+
+    if (!hasAllSignatures(ERC721ExpectedMethods, contract.bytecode)) {
+      return
+    }
+
+    try {
+      const params = await callAll(this.shardID, contract.address, ['symbol', 'name'])
+      const erc721: IERC721 = {
+        address: contract.address,
+        name: params.name.replaceAll('\u0000', ''),
+        symbol: params.symbol.replaceAll('\u0000', ''),
+        lastUpdateBlockNumber: contract.blockNumber,
+      }
+
+      await this.store.erc721.addERC721(erc721)
+      this.l.info(
+        `Found new ERC721 contract "${erc721.name}" ${erc721.address} at block ${contract.blockNumber}`
+      )
+      return true
+    } catch (err) {
+      this.l.debug(`Failed to get contract ${contract.address} info`, err.message || err)
+      return false
+    }
+  }
+
+  addContract(contract: Contract) {
+    if (this.contractType === 'erc1155') {
+      return this.addERC1155Contract(contract)
+    } else if (this.contractType === 'erc721') {
+      return this.addERC721Contract(contract)
     }
   }
 
@@ -108,16 +160,15 @@ export class ContractIndexer {
     let count = 0
     for (let i = 0; i < contracts.length; i++) {
       const contract = contracts[i]
-      const parsed = await this.parseContract(contract)
-
-      if (parsed) {
+      const isParsed = await this.addContract(contract)
+      if (isParsed) {
         count++
       }
     }
     return count
   }
 
-  private async parseEvents(logs: Log[]) {
+  private async parseEventsERC1155(logs: Log[]) {
     const addressesToUpdate = new Set<{
       address: string
       tokenAddress: string
@@ -155,7 +206,121 @@ export class ContractIndexer {
     return transferSingleLogs.length
   }
 
+  private async parseEventsERC721(logs: Log[]) {
+    const {getEntryByName, decodeLog, call} = ABIFactoryERC721(this.shardID)
+    const transferSignature = getEntryByName(ContractEventType.Transfer)!.signature
+    const transferLogs = logs.filter(({topics}) => topics.includes(transferSignature))
+
+    const addressesToUpdate = new Set<{
+      address: string
+      tokenAddress: string
+      tokenId: string
+      blockNumber: string
+    }>()
+
+    transferLogs.forEach((log) => {
+      const {blockNumber} = log
+      const [topic0, ...topics] = log.topics
+      const decodedLog = decodeLog(ContractEventType.Transfer, log.data, topics)
+      if (![decodedLog.from, decodedLog.to].includes(zeroAddress)) {
+        const tokenAddress = normalizeAddress(log.address) as string
+        const from = normalizeAddress(decodedLog.from) as string
+        const to = normalizeAddress(decodedLog.to) as string
+        const {tokenId} = decodedLog
+        const value =
+          typeof decodedLog.value !== 'undefined' ? BigInt(decodedLog.value).toString() : undefined
+
+        addressesToUpdate.add({address: from, tokenAddress, tokenId, blockNumber})
+        addressesToUpdate.add({address: to, tokenAddress, tokenId, blockNumber})
+      }
+    })
+
+    for (const item of addressesToUpdate.values()) {
+      const {address, tokenAddress, tokenId, blockNumber} = item
+      await this.store.erc721.addAsset(address, tokenAddress, tokenId, blockNumber)
+    }
+    return transferLogs.length
+  }
+
+  private async parseEvents(logs: Log[]) {
+    if (this.contractType === 'erc1155') {
+      return this.parseEventsERC1155(logs)
+    } else if (this.contractType === 'erc721') {
+      return this.parseEventsERC721(logs)
+    }
+  }
+
   private async updateMetadata() {
+    if (this.contractType === 'erc1155') {
+      return this.updateMetadataERC1155()
+    } else if (this.contractType === 'erc721') {
+      return this.updateMetadataERC721()
+    }
+  }
+
+  private async updateMetadataERC721() {
+    const {call} = ABIFactoryERC721(this.shardID)
+
+    let count = 0
+    const tokensForUpdate = new Set<Address>()
+
+    // since we update entries, iterator doesnt work
+    while (true) {
+      const assetsNeedUpdate = await this.store.erc721.getAssets(updateTokensFilter)
+      if (!assetsNeedUpdate.length) {
+        break
+      }
+
+      const promises = assetsNeedUpdate.map(async ({tokenAddress, tokenID, meta: metaData}) => {
+        tokensForUpdate.add(tokenAddress)
+
+        // todo dont fetch uri if already there
+        const uri = await call('tokenURI', [tokenID], tokenAddress)
+
+        const owner = await call('ownerOf', [tokenID], tokenAddress).then(normalizeAddress)
+        let meta = {} as any
+        if (!metaData || Object.keys(metaData).length == 0) {
+          try {
+            // todo validate size
+            meta = await nodeFetch(uri).then((r) => r.json())
+          } catch (e) {
+            // l.warn(`Failed to fetch meta from ${uri} for token ${tokenAddress} ${tokenID}`)
+          }
+        }
+
+        return this.store.erc721.updateAsset(
+          owner!,
+          tokenAddress,
+          uri,
+          meta,
+          tokenID as IERC721TokenID
+        )
+      })
+      await Promise.all(promises)
+      count += assetsNeedUpdate.length
+    }
+
+    const promises = [...tokensForUpdate.values()].map(async (token) => {
+      const holders = await this.store.erc721.getHoldersCount(token)
+      const totalSupply = await call('totalSupply', [], token)
+      // todo tx count ?
+
+      const erc721 = {
+        holders: +holders || 0,
+        totalSupply: totalSupply,
+        transactionCount: 0,
+        address: token,
+      }
+
+      // @ts-ignore
+      return this.store.erc721.updateERC721(erc721)
+    })
+
+    await Promise.all(promises)
+    return count
+  }
+
+  private async updateMetadataERC1155() {
     const {call} = ABIFactoryERC1155(this.shardID)
 
     let count = 0
@@ -207,6 +372,13 @@ export class ContractIndexer {
   }
 
   private async updateBalances() {
+    if (this.contractType === 'erc1155') {
+      return this.updateBalancesERC1155()
+    }
+    return 0
+  }
+
+  private async updateBalancesERC1155() {
     const {call} = ABIFactoryERC1155(this.shardID)
 
     const tokensForUpdate = new Set<Address>()
@@ -249,7 +421,7 @@ export class ContractIndexer {
     const blocksHeight = (await this.store.indexer.getLastIndexedBlockNumber()) || initialHeight
     // const logsHeight = await this.store.indexer.getLastIndexedBlockNumberByName('logs')
 
-    const blocksRange = 10
+    const blocksRange = 1000
     const blocksThreshold = 30
 
     const blocksHeightLimit = blocksHeight - blocksThreshold
@@ -298,6 +470,7 @@ export class ContractIndexer {
         } blocks). ${contractsCount} contracts, ${eventsCount} events. Updated ${metadataUpdateCount} metadata, ${balancesUpdateCount} address balances.`
       )
     } else {
+      this.l.info(`Wait`)
       sleepTimeout = 1000 * 5
     }
 
