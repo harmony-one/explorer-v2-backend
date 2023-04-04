@@ -43,7 +43,7 @@ const ERC1155ExpectedMethods = [
 export class ContractIndexer {
   readonly l: LoggerModule
   readonly store: PostgresStorage
-  readonly contractType: string
+  readonly contractType: ContractType
   readonly shardID: ShardID
 
   constructor(shardID: ShardID, contractType: ContractType) {
@@ -53,11 +53,7 @@ export class ContractIndexer {
     this.l = logger(module, `:Shard ${shardID} ${contractType}`)
   }
 
-  private sleep(timeout: number) {
-    return new Promise((resolve) => setTimeout(resolve, timeout))
-  }
-
-  private async parseERC1155(contract: Contract) {
+  private async parseContract(contract: Contract) {
     const {hasAllSignatures, callAll} = ABIFactoryERC1155(this.shardID)
 
     if (!hasAllSignatures(ERC1155ExpectedMethods, contract.bytecode)) {
@@ -111,8 +107,10 @@ export class ContractIndexer {
   private async addContracts(contracts: Contract[]) {
     let count = 0
     for (let i = 0; i < contracts.length; i++) {
-      const contract = await this.parseERC1155(contracts[i])
-      if (contract) {
+      const contract = contracts[i]
+      const parsed = await this.parseContract(contract)
+
+      if (parsed) {
         count++
       }
     }
@@ -120,10 +118,6 @@ export class ContractIndexer {
   }
 
   private async parseEvents(logs: Log[]) {
-    const contracts = await this.store.erc1155.getAllERC1155()
-    const contractLogs = logs.filter((log) =>
-      contracts.find((contract) => contract.address === log.address)
-    )
     const addressesToUpdate = new Set<{
       address: string
       tokenAddress: string
@@ -133,9 +127,7 @@ export class ContractIndexer {
     const {decodeLog, getEntryByName} = ABIFactoryERC1155(this.shardID)
     const transferSingleEvent = getEntryByName(ContractEventType.TransferSingle)!.signature
 
-    const transferSingleLogs = contractLogs.filter(({topics}) =>
-      topics.includes(transferSingleEvent)
-    )
+    const transferSingleLogs = logs.filter(({topics}) => topics.includes(transferSingleEvent))
 
     transferSingleLogs.forEach((log) => {
       const {blockNumber} = log
@@ -219,14 +211,13 @@ export class ContractIndexer {
 
     const tokensForUpdate = new Set<Address>()
     let count = 0
-    // since we update entries, iterator doesnt work
+
     while (true) {
       const assetsNeedUpdate = await this.store.erc1155.getBalances(updateTokensFilter)
       if (!assetsNeedUpdate.length) {
         break
       }
 
-      // can be optimized if call a batch
       const promises = assetsNeedUpdate.map(async ({tokenAddress, tokenID, ownerAddress}) => {
         tokensForUpdate.add(tokenAddress)
 
@@ -245,12 +236,17 @@ export class ContractIndexer {
     return count
   }
 
+  private async getAllContractAddresses(): Promise<Array<{address: string}>> {
+    return await this.store.query(`select address from ${this.contractType}`, [])
+  }
+
   loop = async () => {
+    const initialHeight = config.indexer.initialBlockSyncingHeight
     const contractsIndexerHeight =
       (await this.store.indexer.getLastIndexedBlockNumberByName(
         `${this.contractType}_contracts`
-      )) || config.indexer.initialBlockSyncingHeight
-    const blocksHeight = (await this.store.indexer.getLastIndexedBlockNumber()) || 0
+      )) || initialHeight
+    const blocksHeight = (await this.store.indexer.getLastIndexedBlockNumber()) || initialHeight
     // const logsHeight = await this.store.indexer.getLastIndexedBlockNumberByName('logs')
 
     const blocksRange = 10
@@ -258,9 +254,7 @@ export class ContractIndexer {
 
     const blocksHeightLimit = blocksHeight - blocksThreshold
 
-    const blocksFrom = contractsIndexerHeight
-      ? contractsIndexerHeight + 1
-      : config.indexer.initialBlockSyncingHeight
+    const blocksFrom = contractsIndexerHeight + 1
     const blocksTo = Math.min(blocksFrom + blocksRange - 1, blocksHeightLimit)
     const delta = blocksTo - blocksFrom
 
@@ -283,7 +277,13 @@ export class ContractIndexer {
       const logs = await this.store.log.getLogs({filters: baseFilters})
 
       const contractsCount = await this.addContracts(contracts)
-      const eventsCount = await this.parseEvents(logs)
+
+      const contractAddresses = await this.getAllContractAddresses()
+      const contractsLogs = logs.filter((log) =>
+        contractAddresses.find(({address}) => address === log.address)
+      )
+      const eventsCount = await this.parseEvents(contractsLogs)
+
       const metadataUpdateCount = await this.updateMetadata()
       const balancesUpdateCount = await this.updateBalances()
 
@@ -293,9 +293,9 @@ export class ContractIndexer {
       )
 
       this.l.info(
-        `Processed blocks [${blocksFrom}, ${blocksTo}] (${delta + 1} blocks).
-        ${contractsCount} new contracts, ${eventsCount} new events.
-        Updated ${metadataUpdateCount} metadata, ${balancesUpdateCount} address balances.`
+        `Processed blocks [${blocksFrom}, ${blocksTo}] (${
+          delta + 1
+        } blocks). ${contractsCount} contracts, ${eventsCount} events. Updated ${metadataUpdateCount} metadata, ${balancesUpdateCount} address balances.`
       )
     } else {
       sleepTimeout = 1000 * 5
