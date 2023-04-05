@@ -30,7 +30,7 @@ export class PostgresStorageERC721 implements IStorageERC721 {
     return res.map(fromSnakeToCamelResponse)
   }
 
-  updateERC721 = async (erc721: IERC721) => {
+  updateERC721 = async (erc721: Partial<IERC721>) => {
     return this.query(
       `update erc721 set total_supply=$1, holders=$2, transaction_count=$3 where address=$4;`,
       [erc721.totalSupply, erc721.holders, erc721.transactionCount, erc721.address]
@@ -92,6 +92,16 @@ export class PostgresStorageERC721 implements IStorageERC721 {
           where token_address=$4 and token_id=$5;
           `,
       [tokenURI, meta, owner, tokenAddress, tokenID]
+    )
+  }
+
+  setNeedUpdate = async (tokenAddress: string, tokenID: string, needUpdate: boolean) => {
+    return this.query(
+      `
+          update erc721_asset set need_update=$3 
+          where token_address=$1 and token_id=$2;
+          `,
+      [tokenAddress, tokenID, needUpdate]
     )
   }
 

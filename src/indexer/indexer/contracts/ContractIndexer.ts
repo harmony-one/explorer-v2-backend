@@ -2,7 +2,6 @@ import {logger} from 'src/logger'
 import LoggerModule from 'zerg/dist/LoggerModule'
 import {stores} from 'src/store'
 import {PostgresStorage} from 'src/store/postgres'
-import nodeFetch from 'node-fetch'
 import {
   Address,
   Contract,
@@ -24,6 +23,11 @@ import {config} from 'src/config'
 import {ABIFactory as ABIFactoryERC1155} from 'src/indexer/indexer/contracts/erc1155/ABI'
 import {ABIFactory as ABIFactoryERC721} from 'src/indexer/indexer/contracts/erc721/ABI'
 import {ABIFactory as ABIFactoryERC20} from 'src/indexer/indexer/contracts/erc20/ABI'
+import {
+  ERC1155ExpectedMethods,
+  ERC20ExpectedMethods,
+  ERC721ExpectedMethods,
+} from 'src/indexer/indexer/contracts/utils'
 
 const updateTokensFilter: Filter = {
   limit: 10,
@@ -37,40 +41,6 @@ const updateTokensFilter: Filter = {
   ],
 }
 
-const ERC20ExpectedMethods = [
-  'Transfer',
-  'Approval',
-  'totalSupply',
-  'decimals',
-  'transfer',
-  'balanceOf',
-  'symbol',
-  'name',
-  'approve',
-]
-
-const ERC721ExpectedMethods = [
-  'Transfer',
-  'Approval',
-  'totalSupply',
-  'ownerOf',
-  'tokenURI',
-  'transferFrom',
-  'safeTransferFrom',
-  'balanceOf',
-  'symbol',
-  'name',
-  'approve',
-]
-
-const ERC1155ExpectedMethods = [
-  'TransferSingle',
-  'TransferBatch',
-  'owner',
-  'balanceOfBatch',
-  'contractURI',
-]
-
 export class ContractIndexer {
   readonly l: LoggerModule
   readonly store: PostgresStorage
@@ -81,7 +51,7 @@ export class ContractIndexer {
     this.shardID = shardID
     this.contractType = contractType
     this.store = stores[shardID]
-    this.l = logger(module, `:Shard ${shardID} ${contractType}`)
+    this.l = logger(module, `:Shard${shardID}::${contractType}`)
   }
 
   private async addERC1155Contract(contract: Contract) {
@@ -307,12 +277,9 @@ export class ContractIndexer {
         }
       })
 
-      const updateBalancesPromises = [
-        ...addressesToUpdate.values(),
-      ].map(({address, tokenAddress}) =>
-        this.store.erc20.setNeedUpdateBalance(address, tokenAddress)
-      )
-      await Promise.all(updateBalancesPromises)
+      for (const item of addressesToUpdate.values()) {
+        await this.store.erc20.setNeedUpdateBalance(item.address, item.tokenAddress)
+      }
     }
     return transferLogs.length
   }
@@ -376,11 +343,9 @@ export class ContractIndexer {
 
   private async updateMetadataERC721() {
     const {call} = ABIFactoryERC721(this.shardID)
-
     let count = 0
     const tokensForUpdate = new Set<Address>()
 
-    // since we update entries, iterator doesnt work
     while (true) {
       const assetsNeedUpdate = await this.store.erc721.getAssets(updateTokensFilter)
       if (!assetsNeedUpdate.length) {
@@ -390,49 +355,49 @@ export class ContractIndexer {
       const promises = assetsNeedUpdate.map(async ({tokenAddress, tokenID, meta: metaData}) => {
         tokensForUpdate.add(tokenAddress)
 
-        // todo dont fetch uri if already there
-        const uri = await call('tokenURI', [tokenID], tokenAddress)
-
-        const owner = await call('ownerOf', [tokenID], tokenAddress).then(normalizeAddress)
-        let meta = {} as any
-        if (!metaData || Object.keys(metaData).length == 0) {
-          try {
-            // todo validate size
-            meta = await nodeFetch(uri).then((r) => r.json())
-          } catch (e) {
-            // l.warn(`Failed to fetch meta from ${uri} for token ${tokenAddress} ${tokenID}`)
+        try {
+          const uri = await call('tokenURI', [tokenID], tokenAddress)
+          const owner = await call('ownerOf', [tokenID], tokenAddress).then(normalizeAddress)
+          let meta = {} as any
+          if (!metaData || Object.keys(metaData).length == 0) {
+            meta = await getByIPFSHash(uri).catch((e) => {
+              this.l.warn(
+                `Cannot get metadata for tokenAddress ${tokenAddress}, tokenID "${tokenID}"`,
+                e.message
+              )
+            })
           }
+          return this.store.erc721.updateAsset(
+            owner!,
+            tokenAddress,
+            uri,
+            meta,
+            tokenID as IERC721TokenID
+          )
+        } catch (e) {
+          await this.store.erc721.setNeedUpdate(tokenAddress, tokenID as IERC721TokenID, false)
+          this.l.warn(
+            `Failed to fetch data for token ${tokenAddress}, tokenID "${tokenID}": tokenURI or ownerOf methods unavailable.`,
+            e.message
+          )
         }
-
-        return this.store.erc721.updateAsset(
-          owner!,
-          tokenAddress,
-          uri,
-          meta,
-          tokenID as IERC721TokenID
-        )
       })
       await Promise.all(promises)
       count += assetsNeedUpdate.length
     }
 
-    const promises = [...tokensForUpdate.values()].map(async (token) => {
+    for (const token of tokensForUpdate.values()) {
       const holders = await this.store.erc721.getHoldersCount(token)
       const totalSupply = await call('totalSupply', [], token)
-      // todo tx count ?
-
       const erc721 = {
         holders: +holders || 0,
         totalSupply: totalSupply,
         transactionCount: 0,
         address: token,
       }
+      await this.store.erc721.updateERC721(erc721)
+    }
 
-      // @ts-ignore
-      return this.store.erc721.updateERC721(erc721)
-    })
-
-    await Promise.all(promises)
     return count
   }
 
@@ -538,6 +503,21 @@ export class ContractIndexer {
     return await this.store.query(`select address from ${this.contractType}`, [])
   }
 
+  private getBaseFilters(blockFrom: number, blockTo: number) {
+    return [
+      {
+        property: 'block_number',
+        type: 'gte',
+        value: blockFrom,
+      },
+      {
+        property: 'block_number',
+        type: 'lte',
+        value: blockTo,
+      },
+    ] as FilterEntry[]
+  }
+
   loop = async () => {
     const initialHeight = config.indexer.initialBlockSyncingHeight
     const contractsIndexerHeight =
@@ -545,61 +525,55 @@ export class ContractIndexer {
         `${this.contractType}_contracts`
       )) || initialHeight
     const blocksHeight = (await this.store.indexer.getLastIndexedBlockNumber()) || initialHeight
-    // const logsHeight = await this.store.indexer.getLastIndexedBlockNumberByName('logs')
+    const logsHeight = await this.store.indexer.getLastIndexedBlockNumberByName('logs')
+
+    let blockchainHeight = blocksHeight
+    if (logsHeight < blocksHeight) {
+      blockchainHeight = logsHeight
+      this.l.info(
+        `Logs height ${logsHeight} < blocks indexer height ${blocksHeight}. Use logs height as upper limit ${logsHeight}.`
+      )
+    }
 
     const blocksRange = 100
     const blocksThreshold = 30
+    const blocksHeightLimit = blockchainHeight - blocksThreshold
 
-    const blocksHeightLimit = blocksHeight - blocksThreshold
+    const blockFrom = contractsIndexerHeight + 1
+    const blockTo = Math.min(blockFrom + blocksRange - 1, blocksHeightLimit)
+    const delta = blockTo - blockFrom
 
-    const blocksFrom = contractsIndexerHeight + 1
-    const blocksTo = Math.min(blocksFrom + blocksRange - 1, blocksHeightLimit)
-    const delta = blocksTo - blocksFrom
-
-    let sleepTimeout = 100
     if (delta >= 0) {
-      const baseFilters: FilterEntry[] = [
-        {
-          property: 'block_number',
-          type: 'gte',
-          value: blocksFrom,
-        },
-        {
-          property: 'block_number',
-          type: 'lte',
-          value: blocksTo,
-        },
-      ]
-
+      const baseFilters = this.getBaseFilters(blockFrom, blockTo)
       const contracts = await this.store.contract.getContracts({filters: baseFilters})
       const logs = await this.store.log.getLogs({filters: baseFilters})
 
       const contractsCount = await this.addContracts(contracts)
-
       const contractAddresses = await this.getAllContractAddresses()
       const contractsLogs = logs.filter((log) =>
         contractAddresses.find(({address}) => address === log.address)
       )
       const eventsCount = await this.parseEvents(contractsLogs)
-
       const metadataUpdateCount = await this.updateMetadata()
       const balancesUpdateCount = await this.updateBalances()
 
       await this.store.indexer.setLastIndexedBlockNumberByName(
         `${this.contractType}_contracts`,
-        blocksTo
+        blockTo
       )
 
       this.l.info(
-        `Processed blocks [${blocksFrom}, ${blocksTo}] (${
+        `Processed blocks [${blockFrom}, ${blockTo}] (${
           delta + 1
         } blocks). ${contractsCount} contracts, ${eventsCount} events. Updated ${metadataUpdateCount} metadata, ${balancesUpdateCount} address balances.`
       )
     } else {
-      this.l.info(`Wait`)
-      sleepTimeout = 1000 * 5
+      // this.l.info(
+      //   `Reached block indexer height ${blocksHeightLimit}, wait`
+      // )
     }
 
+    const sleepTimeout = delta >= 0 ? 0 : 10 * 1000
     setTimeout(this.loop, sleepTimeout)
   }
 }

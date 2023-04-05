@@ -36,7 +36,7 @@ export const indexer = async () => {
   await indexerServer()
 
   // todo enabled flag config for the task
-  if (config.indexer.shards.includes(0)) {
+  if (config.indexer.isSyncingBlocksEnabled && config.indexer.shards.includes(0)) {
     statsIndexer()
   }
 
