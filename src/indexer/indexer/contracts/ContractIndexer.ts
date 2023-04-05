@@ -327,16 +327,6 @@ export class ContractIndexer {
     }
   }
 
-  private async updateMetadata() {
-    if (this.contractType === 'erc1155') {
-      return this.updateMetadataERC1155()
-    } else if (this.contractType === 'erc721') {
-      return this.updateMetadataERC721()
-    } else if (this.contractType === 'erc20') {
-      return this.updateMetadataERC20()
-    }
-  }
-
   private async updateMetadataERC20() {
     const {call} = ABIFactoryERC20(this.shardID)
     let count = 0
@@ -497,11 +487,14 @@ export class ContractIndexer {
     return count
   }
 
-  private async updateBalances() {
+  private async updateMetadata() {
     if (this.contractType === 'erc1155') {
-      return this.updateBalancesERC1155()
+      return this.updateMetadataERC1155()
+    } else if (this.contractType === 'erc721') {
+      return this.updateMetadataERC721()
+    } else if (this.contractType === 'erc20') {
+      return this.updateMetadataERC20()
     }
-    return 0
   }
 
   private async updateBalancesERC1155() {
@@ -534,6 +527,13 @@ export class ContractIndexer {
     return count
   }
 
+  private async updateBalances() {
+    if (this.contractType === 'erc1155') {
+      return this.updateBalancesERC1155()
+    }
+    return 0
+  }
+
   private async getAllContractAddresses(): Promise<Array<{address: string}>> {
     return await this.store.query(`select address from ${this.contractType}`, [])
   }
@@ -547,7 +547,7 @@ export class ContractIndexer {
     const blocksHeight = (await this.store.indexer.getLastIndexedBlockNumber()) || initialHeight
     // const logsHeight = await this.store.indexer.getLastIndexedBlockNumberByName('logs')
 
-    const blocksRange = 1000
+    const blocksRange = 100
     const blocksThreshold = 30
 
     const blocksHeightLimit = blocksHeight - blocksThreshold
