@@ -359,8 +359,6 @@ export class ContractIndexer {
     const {call} = ABIFactoryERC1155(this.shardID)
 
     let count = 0
-    const tokensForUpdate = new Set<Address>()
-
     while (true) {
       const assetsNeedUpdate = await this.store.erc1155.getAssets(updateTokensFilter)
       if (!assetsNeedUpdate.length) {
@@ -380,17 +378,13 @@ export class ContractIndexer {
           continue
         }
 
-        tokensForUpdate.add(tokenAddress)
-
         const uri = await call('uri', [tokenID], tokenAddress)
         let meta = {} as any
-
         try {
           meta = await getByIPFSHash(uri)
         } catch (e) {
           this.l.debug(`Failed to fetch metadata ${uri} for token ${tokenAddress} ${tokenID}`)
         }
-
         await this.store.erc1155.updateAsset(tokenAddress, uri, meta, tokenID as IERC721TokenID)
       }
       count += assetsNeedUpdate.length
@@ -534,7 +528,7 @@ export class ContractIndexer {
       blockchainHeight = logsHeight
     }
 
-    const blocksRange = 100
+    const blocksRange = 10000
     const blocksThreshold = 30
     const blocksHeightLimit = blockchainHeight - blocksThreshold
 
@@ -543,6 +537,7 @@ export class ContractIndexer {
     const delta = blockTo - blockFrom
 
     if (delta >= 0) {
+      const timeStart = Date.now()
       const baseFilters = this.getBaseFilters(blockFrom, blockTo)
       const contracts = await this.store.contract.getContracts({filters: baseFilters})
       const logs = await this.store.log.getLogs({filters: baseFilters})
@@ -562,9 +557,9 @@ export class ContractIndexer {
       )
 
       this.l.info(
-        `Processed blocks [${blockFrom}, ${blockTo}] (${
-          delta + 1
-        } blocks). ${contractsCount} contracts, ${eventsCount} events. Updated ${metadataUpdateCount} metadata, ${balancesUpdateCount} address balances.`
+        `Processed [${blockFrom}, ${blockTo}] (${delta + 1} blocks, ${
+          Date.now() - timeStart
+        } ms) ${contractsCount} contracts, ${eventsCount} events, ${metadataUpdateCount} metadata, ${balancesUpdateCount} address balances.`
       )
     } else {
       // this.l.info(
