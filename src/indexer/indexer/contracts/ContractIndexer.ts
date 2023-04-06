@@ -71,14 +71,16 @@ export class ContractIndexer {
       if (params.contractURI) {
         try {
           const metadata = await getByIPFSHash(params.contractURI)
-          meta = {...metadata}
-          if (metadata.name) {
-            contractName = metadata.name.replaceAll('\u0000', '')
-            meta.name = contractName
-          }
-          if (metadata.symbol) {
-            contractSymbol = metadata.symbol.replaceAll('\u0000', '')
-            meta.symbol = contractSymbol
+          if (metadata) {
+            meta = {...metadata}
+            if (metadata.name) {
+              contractName = metadata.name.replaceAll('\u0000', '')
+              meta.name = contractName
+            }
+            if (metadata.symbol) {
+              contractSymbol = metadata.symbol.replaceAll('\u0000', '')
+              meta.symbol = contractSymbol
+            }
           }
         } catch (e) {
           this.l.info(
@@ -128,7 +130,7 @@ export class ContractIndexer {
       )
       return true
     } catch (err) {
-      this.l.debug(`Failed to get contract ${contract.address} info`, err.message || err)
+      this.l.warn(`Failed to get contract info ${contract.address}`, err.message || err)
       return false
     }
   }
@@ -314,12 +316,16 @@ export class ContractIndexer {
           const owner = await call('ownerOf', [tokenID], tokenAddress).then(normalizeAddress)
           let meta = {} as any
           if (!metaData || Object.keys(metaData).length == 0) {
-            meta = await getByIPFSHash(uri).catch((e) => {
+            try {
+              const uriMetadata = await getByIPFSHash(uri)
+              if (uriMetadata) {
+                meta = uriMetadata
+              }
+            } catch (e) {
               this.l.warn(
-                `Cannot get metadata for tokenAddress ${tokenAddress}, tokenID "${tokenID}"`,
-                e.message
+                `Cannot get metadata tokenAddress: ${tokenAddress}, tokenID: ${tokenID}, uri: ${uri}`
               )
-            })
+            }
           }
           return this.store.erc721.updateAsset(
             owner!,
@@ -381,9 +387,12 @@ export class ContractIndexer {
         const uri = await call('uri', [tokenID], tokenAddress)
         let meta = {} as any
         try {
-          meta = await getByIPFSHash(uri)
+          const uriMetadata = await getByIPFSHash(uri)
+          if (uriMetadata) {
+            meta = uriMetadata
+          }
         } catch (e) {
-          this.l.debug(`Failed to fetch metadata ${uri} for token ${tokenAddress} ${tokenID}`)
+          this.l.warn(`Cannot get metadata ${uri} for token ${tokenAddress} ${tokenID}`)
         }
         await this.store.erc1155.updateAsset(tokenAddress, uri, meta, tokenID as IERC721TokenID)
       }
@@ -528,7 +537,7 @@ export class ContractIndexer {
       blockchainHeight = logsHeight
     }
 
-    const blocksRange = 100
+    const blocksRange = 1000
     const blocksThreshold = 30
     const blocksHeightLimit = blockchainHeight - blocksThreshold
 
