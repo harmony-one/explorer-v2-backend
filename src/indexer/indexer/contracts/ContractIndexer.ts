@@ -537,7 +537,7 @@ export class ContractIndexer {
       blockchainHeight = logsHeight
     }
 
-    const blocksRange = 1000
+    const blocksRange = 100
     const blocksThreshold = 30
     const blocksHeightLimit = blockchainHeight - blocksThreshold
 
