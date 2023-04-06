@@ -514,7 +514,7 @@ export class ContractIndexer {
     ] as FilterEntry[]
   }
 
-  loop = async () => {
+  loop = async (firstIteration = false) => {
     const initialHeight = config.indexer.initialBlockSyncingHeight
     const contractsIndexerHeight =
       (await this.store.indexer.getLastIndexedBlockNumberByName(
@@ -528,13 +528,17 @@ export class ContractIndexer {
       blockchainHeight = logsHeight
     }
 
-    const blocksRange = 10000
+    const blocksRange = 100
     const blocksThreshold = 30
     const blocksHeightLimit = blockchainHeight - blocksThreshold
 
     const blockFrom = contractsIndexerHeight + 1
     const blockTo = Math.min(blockFrom + blocksRange - 1, blocksHeightLimit)
     const delta = blockTo - blockFrom
+
+    if (firstIteration) {
+      this.l.info(`Start blocks range [${blockFrom}, ${blockTo}]`)
+    }
 
     if (delta >= 0) {
       const timeStart = Date.now()
@@ -557,9 +561,9 @@ export class ContractIndexer {
       )
 
       this.l.info(
-        `Processed [${blockFrom}, ${blockTo}] (${delta + 1} blocks, ${
+        `Processed [${blockFrom}, ${blockTo}] (${delta + 1} blocks) ${
           Date.now() - timeStart
-        } ms) ${contractsCount} contracts, ${eventsCount} events, ${metadataUpdateCount} metadata, ${balancesUpdateCount} address balances.`
+        } ms ${contractsCount} contracts, ${eventsCount} events, ${metadataUpdateCount} metadata, ${balancesUpdateCount} address balances.`
       )
     } else {
       // this.l.info(

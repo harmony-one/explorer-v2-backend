@@ -55,7 +55,7 @@ export const indexer = async () => {
     const contractTypes = config.indexer.trackContractTypes as ContractType[]
     contractTypes.forEach((contractType) => {
       const contractIndexer0 = new ContractIndexer(0, contractType)
-      contractIndexer0.loop()
+      contractIndexer0.loop(true)
     })
   }
 
