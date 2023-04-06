@@ -46,6 +46,7 @@ export class ContractIndexer {
   readonly store: PostgresStorage
   readonly contractType: ContractType
   readonly shardID: ShardID
+  private contractsCache: string[] = []
 
   constructor(shardID: ShardID, contractType: ContractType) {
     this.shardID = shardID
@@ -294,53 +295,6 @@ export class ContractIndexer {
     }
   }
 
-  private async updateMetadataERC20() {
-    const {call} = ABIFactoryERC20(this.shardID)
-    let count = 0
-    const tokensForUpdate = new Set<Address>()
-
-    // since we update entries, iterator doesnt work
-    while (true) {
-      const balancesNeedUpdate = await this.store.erc20.getBalances({
-        ...updateTokensFilter,
-        limit: 100,
-      })
-      if (!balancesNeedUpdate.length) {
-        break
-      }
-
-      const promises = balancesNeedUpdate.map(({ownerAddress, tokenAddress}) => {
-        tokensForUpdate.add(tokenAddress)
-
-        return call('balanceOf', [ownerAddress], tokenAddress).then((balance) =>
-          this.store.erc20.updateBalance(ownerAddress, tokenAddress, balance)
-        )
-      })
-      await Promise.all(promises)
-      count += balancesNeedUpdate.length
-    }
-
-    const promises = [...tokensForUpdate.values()].map(async (token) => {
-      const holders = await this.store.erc20.getHoldersCount(token)
-      const totalSupply = await call('totalSupply', [], token)
-      const circulatingSupply = await this.store.erc20.getERC20CirculatingSupply(token)
-
-      const erc20 = {
-        holders: +holders || 0,
-        totalSupply: totalSupply,
-        circulatingSupply,
-        transactionCount: 0,
-        address: token,
-      }
-
-      // @ts-ignore
-      return this.store.erc20.updateERC20(erc20)
-    })
-
-    await Promise.all(promises)
-    return count
-  }
-
   private async updateMetadataERC721() {
     const {call} = ABIFactoryERC721(this.shardID)
     let count = 0
@@ -412,40 +366,33 @@ export class ContractIndexer {
       if (!assetsNeedUpdate.length) {
         break
       }
-      // this.l.info(`Updating ${assetsNeedUpdate.length} assets`)
 
-      const promises = assetsNeedUpdate.map(
-        async ({meta: metaData, tokenAddress, tokenID, tokenURI = ''}) => {
-          // todo dont fetch meta if already there
-          // @ts-ignore
-          if (metaData && metaData.name) {
-            // todo tmp line
-            await this.store.erc1155.updateAsset(
-              tokenAddress,
-              tokenURI,
-              metaData,
-              tokenID as IERC721TokenID
-            )
-            return
-          }
-
-          tokensForUpdate.add(tokenAddress)
-
-          const uri = await call('uri', [tokenID], tokenAddress)
-          let meta = {} as any
-
-          try {
-            meta = await getByIPFSHash(uri)
-          } catch (e) {
-            this.l.debug(
-              `Failed to fetch metadata from ${uri} for token ${tokenAddress} ${tokenID}`
-            )
-          }
-
-          await this.store.erc1155.updateAsset(tokenAddress, uri, meta, tokenID as IERC721TokenID)
+      for (const item of assetsNeedUpdate.values()) {
+        const {meta: metaData, tokenAddress, tokenID, tokenURI = ''} = item
+        // @ts-ignore
+        if (metaData && metaData.name) {
+          await this.store.erc1155.updateAsset(
+            tokenAddress,
+            tokenURI,
+            metaData,
+            tokenID as IERC721TokenID
+          )
+          continue
         }
-      )
-      await Promise.all(promises)
+
+        tokensForUpdate.add(tokenAddress)
+
+        const uri = await call('uri', [tokenID], tokenAddress)
+        let meta = {} as any
+
+        try {
+          meta = await getByIPFSHash(uri)
+        } catch (e) {
+          this.l.debug(`Failed to fetch metadata ${uri} for token ${tokenAddress} ${tokenID}`)
+        }
+
+        await this.store.erc1155.updateAsset(tokenAddress, uri, meta, tokenID as IERC721TokenID)
+      }
       count += assetsNeedUpdate.length
     }
 
@@ -457,9 +404,54 @@ export class ContractIndexer {
       return this.updateMetadataERC1155()
     } else if (this.contractType === 'erc721') {
       return this.updateMetadataERC721()
-    } else if (this.contractType === 'erc20') {
-      return this.updateMetadataERC20()
     }
+    return 0
+  }
+
+  private async updateBalancesERC20() {
+    const {call} = ABIFactoryERC20(this.shardID)
+    let count = 0
+    const tokensForUpdate = new Set<Address>()
+
+    while (true) {
+      const balancesNeedUpdate = await this.store.erc20.getBalances({
+        ...updateTokensFilter,
+        limit: 100,
+      })
+      if (!balancesNeedUpdate.length) {
+        break
+      }
+
+      const promises = balancesNeedUpdate.map(({ownerAddress, tokenAddress}) => {
+        tokensForUpdate.add(tokenAddress)
+
+        return call('balanceOf', [ownerAddress], tokenAddress).then((balance) =>
+          this.store.erc20.updateBalance(ownerAddress, tokenAddress, balance)
+        )
+      })
+      await Promise.all(promises)
+      count += balancesNeedUpdate.length
+    }
+
+    const promises = [...tokensForUpdate.values()].map(async (token) => {
+      const holders = await this.store.erc20.getHoldersCount(token)
+      const totalSupply = await call('totalSupply', [], token)
+      const circulatingSupply = await this.store.erc20.getERC20CirculatingSupply(token)
+
+      const erc20 = {
+        holders: +holders || 0,
+        totalSupply: totalSupply,
+        circulatingSupply,
+        transactionCount: 0,
+        address: token,
+      }
+
+      // @ts-ignore
+      return this.store.erc20.updateERC20(erc20)
+    })
+
+    await Promise.all(promises)
+    return count
   }
 
   private async updateBalancesERC1155() {
@@ -495,12 +487,22 @@ export class ContractIndexer {
   private async updateBalances() {
     if (this.contractType === 'erc1155') {
       return this.updateBalancesERC1155()
+    } else if (this.contractType === 'erc20') {
+      return this.updateBalancesERC20()
     }
     return 0
   }
 
-  private async getAllContractAddresses(): Promise<Array<{address: string}>> {
-    return await this.store.query(`select address from ${this.contractType}`, [])
+  private async getAllContractAddresses(): Promise<string[]> {
+    const [{count}] = await this.store.query(`select count(address) from ${this.contractType}`, [])
+    if (+count !== this.contractsCache.length) {
+      const rows: Array<{address: string}> = await this.store.query(
+        `select address from ${this.contractType}`,
+        []
+      )
+      this.contractsCache = rows.map((row) => row.address)
+    }
+    return this.contractsCache
   }
 
   private getBaseFilters(blockFrom: number, blockTo: number) {
@@ -530,9 +532,6 @@ export class ContractIndexer {
     let blockchainHeight = blocksHeight
     if (logsHeight < blocksHeight) {
       blockchainHeight = logsHeight
-      this.l.info(
-        `Logs height ${logsHeight} < blocks indexer height ${blocksHeight}. Use logs height as upper limit ${logsHeight}.`
-      )
     }
 
     const blocksRange = 100
@@ -551,7 +550,7 @@ export class ContractIndexer {
       const contractsCount = await this.addContracts(contracts)
       const contractAddresses = await this.getAllContractAddresses()
       const contractsLogs = logs.filter((log) =>
-        contractAddresses.find(({address}) => address === log.address)
+        contractAddresses.find((contractAddress) => contractAddress === log.address)
       )
       const eventsCount = await this.parseEvents(contractsLogs)
       const metadataUpdateCount = await this.updateMetadata()
