@@ -238,7 +238,7 @@ export class BlockIndexer {
           const blocks = await getBlocks(from, to)
           const blocksInternalTxs = isTraceBlocksEnabled
             ? await getBlocksTrace(blocks)
-            : [...Array(Math.max(to - from, 1)).fill([])] // Array of empty arrays: [[], [], [], ..., []]
+            : [...Array(Math.max(to - from + 1, 1)).fill([])] // Array of empty arrays: [[], [], [], ..., []]
           await addBlocks(blocks)
           await addTransactions(blocks, blocksInternalTxs)
           await addStakingTransactions(blocks)

@@ -238,7 +238,7 @@ export class ContractIndexer {
       const {blockNumber} = log
       const [topic0, ...topics] = log.topics
       const decodedLog = decodeLog(ContractEventType.Transfer, log.data, topics)
-      if (![decodedLog.from, decodedLog.to].includes(zeroAddress)) {
+      if (decodedLog && decodedLog.from && decodedLog.to) {
         const tokenAddress = normalizeAddress(log.address) as string
         const from = normalizeAddress(decodedLog.from) as string
         const to = normalizeAddress(decodedLog.to) as string
@@ -246,8 +246,12 @@ export class ContractIndexer {
         const value =
           typeof decodedLog.value !== 'undefined' ? BigInt(decodedLog.value).toString() : undefined
 
-        addressesToUpdate.add({address: from, tokenAddress, tokenId, blockNumber})
-        addressesToUpdate.add({address: to, tokenAddress, tokenId, blockNumber})
+        if (decodedLog.from !== zeroAddress) {
+          addressesToUpdate.add({address: from, tokenAddress, tokenId, blockNumber})
+        }
+        if (decodedLog.to !== zeroAddress) {
+          addressesToUpdate.add({address: to, tokenAddress, tokenId, blockNumber})
+        }
       }
     })
 
@@ -570,9 +574,11 @@ export class ContractIndexer {
       )
 
       this.l.info(
-        `Processed [${blockFrom}, ${blockTo}] (${delta + 1} blocks) ${
+        `Processed [${blockFrom}, ${blockTo}] (${
+          delta + 1
+        } blocks) ${contractsCount} contracts, ${eventsCount} events, ${metadataUpdateCount} meta, ${balancesUpdateCount} balances. Done in ${
           Date.now() - timeStart
-        } ms ${contractsCount} contracts, ${eventsCount} events, ${metadataUpdateCount} metadata, ${balancesUpdateCount} address balances.`
+        } ms.`
       )
     } else {
       // this.l.info(
