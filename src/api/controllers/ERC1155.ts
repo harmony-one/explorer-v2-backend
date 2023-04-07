@@ -64,7 +64,7 @@ export async function getTokenERC1155Assets(
   return await withCache(
     [shardID, 'getTokenERC1155Assets', arguments],
     () => stores[shardID].erc1155.getTokenAssets(address, offset, limit),
-    1000 * 60 * 10
+    1000 * 5
   )
 }
 
@@ -81,6 +81,6 @@ export async function getTokenERC1155AssetDetails(
   return await withCache(
     [shardID, 'getTokenERC1155Assets', arguments],
     () => stores[shardID].erc1155.getTokenAssetDetails(address, tokenID),
-    1000 * 60 * 60
+    1000 * 5
   )
 }

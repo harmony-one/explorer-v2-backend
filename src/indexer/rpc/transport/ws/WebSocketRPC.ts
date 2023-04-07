@@ -45,7 +45,7 @@ export class WebSocketRPC {
     }
 
     const catchPromise = (err: any) => {
-      this.l.debug('Call error', {method, params, err})
+      // this.l.debug('Call error', {method, params, err})
       retries--
       if (retries === 0) {
         throw new Error(RPCErrorPrefix + ': ' + JSON.stringify(err))

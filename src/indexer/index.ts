@@ -4,7 +4,7 @@ import {LogIndexer} from './indexer/LogIndexer'
 import {ContractIndexer} from 'src/indexer/indexer/contracts/ContractIndexer'
 import {indexerServer} from 'src/indexer/server'
 
-import {ShardID} from 'src/types'
+import {ContractType, ShardID} from 'src/types'
 import {logger} from 'src/logger'
 import {stores} from 'src/store'
 import * as RPCClient from 'src/indexer/rpc/client'
@@ -36,7 +36,7 @@ export const indexer = async () => {
   await indexerServer()
 
   // todo enabled flag config for the task
-  if (config.indexer.shards.includes(0)) {
+  if (config.indexer.isSyncingBlocksEnabled && config.indexer.shards.includes(0)) {
     statsIndexer()
   }
 
@@ -52,14 +52,17 @@ export const indexer = async () => {
   }
 
   if (config.indexer.isSyncingContractsEnabled && config.indexer.shards.includes(0)) {
-    const contractIndexer0 = new ContractIndexer(0)
-    contractIndexer0.loop()
+    const contractTypes = config.indexer.trackContractTypes as ContractType[]
+    contractTypes.forEach((contractType) => {
+      const contractIndexer0 = new ContractIndexer(0, contractType)
+      contractIndexer0.loop(true)
+    })
   }
 
-  if (config.indexer.isSyncingContractsEnabledShard1 && config.indexer.shards.includes(1)) {
-    const contractIndexer1 = new ContractIndexer(1)
-    contractIndexer1.loop()
-  }
+  // if (config.indexer.isSyncingContractsEnabledShard1 && config.indexer.shards.includes(1)) {
+  //   const contractIndexer1 = new ContractIndexer(1)
+  //   contractIndexer1.loop()
+  // }
 }
 
 const checkChainID = async (shardID: ShardID) => {
