@@ -19,13 +19,13 @@ import {metricsRouter} from 'src/api/rest/routes/metrics'
 import {erc20Router} from 'src/api/rest/routes/ERC20'
 import {erc721Router} from 'src/api/rest/routes/ERC721'
 import {erc1155Router} from 'src/api/rest/routes/ERC1155'
-import {oneWalletMetricsRouter} from 'src/api/rest/routes/oneWalletMetrics'
 import {warmUpCache} from 'src/api/controllers/cache/warmUpCache'
 import {rpcRouter} from 'src/api/rest/routes/rpcRouter'
+import {adminRouter} from 'src/api/rest/routes/admin'
 
 import {transport} from 'src/api/rest/transport'
 import prometheusRegister from 'src/api/prometheus'
-import {verifyApiKey} from 'src/api/middlewares/verifyApiKey'
+import {verifyAdminApiKey, verifyApiKey} from 'src/api/middlewares/verifyApiKey'
 import {apiRouter} from 'src/api/rest/routes/api'
 const l = logger(module)
 
@@ -41,20 +41,16 @@ export const RESTServer = async () => {
   api.use(bodyParser.json())
   api.disable('x-powered-by')
 
-  if (config.api.rateLimiter.isEnabled) {
-    const {windowMs, max} = config.api.rateLimiter
-
+  if (config.api.rest.rateLimiter.isEnabled) {
+    const {windowMs, max} = config.api.rest.rateLimiter
     const rateLimiterParams = {
       windowMs,
       max,
-      standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-      legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+      standardHeaders: true,
+      legacyHeaders: false,
     }
-
-    l.info(`Init REST API rate limiter with params:`, rateLimiterParams)
-
-    const limiter = rateLimit(rateLimiterParams)
-    api.use(limiter) // Apply to all routes
+    l.info(`Init REST API rate limiter with params: ${JSON.stringify(rateLimiterParams)}`)
+    api.use(rateLimit(rateLimiterParams))
   } else {
     l.info(`REST API rate limiter is disabled in config [API_RATE_LIMITER_IS_ENABLED]`)
   }
@@ -75,7 +71,6 @@ export const RESTServer = async () => {
   routerWithShards0.use('/signature', signatureRouter, transport)
   routerWithShards0.use('/price', priceRouter, transport)
   routerWithShards0.use('/metrics', metricsRouter, transport)
-  routerWithShards0.use('/1wallet', oneWalletMetricsRouter, transport)
 
   if (config.api.json_rpc.isEnabled) {
     routerWithShards0.use('/rpc', rpcRouter, transport)
@@ -93,6 +88,7 @@ export const RESTServer = async () => {
     transport
   )
   api.use('/api', apiRouter, transport)
+  api.use('/admin', verifyAdminApiKey, adminRouter, transport)
 
   let server: Server
 

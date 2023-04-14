@@ -43,7 +43,10 @@ export class BlockIndexer {
     initialStartBlock: number = 0,
     processExactBlock: null | BlockNumber = null
   ) {
-    this.l = logger(module, `shard${shardID}`)
+    this.l = logger(
+      module,
+      `shard${shardID}${processExactBlock ? `/reindex/${processExactBlock}` : ''}`
+    )
     this.shardID = shardID
     this.initialStartBlock = initialStartBlock
     this.batchCount = batchCount
@@ -227,7 +230,11 @@ export class BlockIndexer {
       const blocks = await Promise.all(
         range(this.batchCount).map(async (_, i) => {
           const from = startBlock + i * blockRange
-          const to = Math.min(from + blockRange - 1, latestBlockchainBlock)
+          const to = Math.min(
+            from + blockRange - 1,
+            latestBlockchainBlock,
+            this.processExactBlock || Infinity
+          )
 
           if (from > latestBlockchainBlock) {
             return Promise.resolve([] as Block[])
@@ -262,19 +269,19 @@ export class BlockIndexer {
         startBlock + blockRange * this.batchCount
       )
 
-      if (this.processExactBlock) {
-        return
-      }
-
-      if (lastFetchedBlockNumber > 0) {
-        await store.indexer.setLastIndexedBlockNumber(lastFetchedBlockNumber)
-      }
-
       this.l.info(
         `Processed [${startBlock}, ${syncedToBlock}] ${
           blocks.length
         } blocks. ${transactionsCount} txs. ${stakingTransactionsCount} staking txs. Done in ${batchTime()}. Failed requests ${failedCount}`
       )
+
+      if (this.processExactBlock) {
+        return syncedToBlock
+      }
+
+      if (lastFetchedBlockNumber > 0) {
+        await store.indexer.setLastIndexedBlockNumber(lastFetchedBlockNumber)
+      }
 
       const u = urls[shardID]
       this.l.debug('RPC queries', {

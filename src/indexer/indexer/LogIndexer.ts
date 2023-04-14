@@ -1,7 +1,7 @@
 import {config} from 'src/config'
 import * as RPCClient from 'src/indexer/rpc/client'
 import {urls, RPCUrls} from 'src/indexer/rpc/RPCUrls'
-import {ShardID, Log} from 'src/types/blockchain'
+import {ShardID, Log, BlockNumber} from 'src/types/blockchain'
 
 import {logger} from 'src/logger'
 import LoggerModule from 'zerg/dist/LoggerModule'
@@ -12,24 +12,38 @@ import {PostgresStorage} from 'src/store/postgres'
 const approximateBlockMintingTime = 2000
 const blockRange = 10
 const maxBatchCount = 100
+const defaultBatchCount = 10
 
 const range = (num: number) => Array(num).fill(0)
 
 // todo make a part of blockindexer
 export class LogIndexer {
   readonly shardID: ShardID
+  readonly initialStartBlock: number
   private l: LoggerModule
-  private batchCount = 10
+  private batchCount: number
   readonly store: PostgresStorage
+  private processExactBlock: null | BlockNumber
 
-  constructor(shardID: ShardID) {
+  constructor(
+    shardID: ShardID,
+    batchCount: number = defaultBatchCount,
+    initialStartBlock: number = 0,
+    processExactBlock: null | BlockNumber = null
+  ) {
     if (shardID !== 0 && shardID !== 1) {
       throw new Error('Only shards #0 and #1 are currently supported')
     }
 
-    this.l = logger(module, `shard${shardID}`)
+    this.l = logger(
+      module,
+      `shard${shardID}${processExactBlock ? `/reindex/${processExactBlock}` : ''}`
+    )
     this.shardID = shardID
     this.store = stores[shardID]
+    this.batchCount = batchCount
+    this.initialStartBlock = initialStartBlock
+    this.processExactBlock = processExactBlock
     this.l.info('Created')
   }
 
@@ -51,7 +65,11 @@ export class LogIndexer {
       const failedCountBefore = RPCUrls.getFailedCount(shardID)
       const latestSyncedBlock = await store.indexer.getLastIndexedLogsBlockNumber()
       // todo check in full sync
-      const startBlock = latestSyncedBlock > 0 ? latestSyncedBlock + 1 : 0
+      const startBlock = this.processExactBlock
+        ? this.processExactBlock
+        : latestSyncedBlock > 0
+        ? latestSyncedBlock + 1
+        : this.initialStartBlock
       const latestBlockchainBlock = (await RPCClient.getBlockByNumber(shardID, 'latest', false))
         .number
 
@@ -67,7 +85,11 @@ export class LogIndexer {
       const res = await Promise.all(
         range(this.batchCount).map(async (_, i) => {
           const from = startBlock + i * blockRange
-          const to = Math.min(from + blockRange - 1, latestBlockchainBlock)
+          const to = Math.min(
+            from + blockRange - 1,
+            latestBlockchainBlock,
+            this.processExactBlock || Infinity
+          )
 
           if (from > latestBlockchainBlock) {
             return Promise.resolve(null)
@@ -91,6 +113,10 @@ export class LogIndexer {
           1
         )} blocks. ${logsLength} log entries. Done in ${batchTime()}.`
       )
+
+      if (this.processExactBlock) {
+        return startBlock
+      }
 
       await store.indexer.setLastIndexedLogsBlockNumber(syncedToBlock)
 
