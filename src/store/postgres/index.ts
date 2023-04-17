@@ -28,7 +28,6 @@ import {config} from 'src/config'
 const defaultRetries = 2
 
 const sleep = (time = 1000) => new Promise((r) => setTimeout(r, time))
-const blockNumber7DayOld = (7 * 24 * 60 * 60) / 2
 
 export class PostgresStorage implements IStorage {
   db: Pool
@@ -100,7 +99,6 @@ export class PostgresStorage implements IStorage {
 
     const {internalTxsDeletePeriod} = config.indexer
     if (config.indexer.isEnabled && [0, 1].includes(this.shardID) && internalTxsDeletePeriod) {
-      this.l.info(`Start removing internal transactions task, period: ${internalTxsDeletePeriod}`)
       try {
         await this.removeOldInternalTransactionsTask(internalTxsDeletePeriod)
       } catch (err) {
@@ -173,12 +171,21 @@ export class PostgresStorage implements IStorage {
   }
 
   removeOldInternalTransactionsTask = async (period: number) => {
+    const blocksCountOneWeek = (7 * 24 * 60 * 60) / 2
     const lastBlockNumber = await this.block.getLatestBlockNumber()
-    const toBlock = lastBlockNumber - blockNumber7DayOld
-    this.l.info(`Removing internal transactions where block number < ${toBlock}`)
+    const toBlock = lastBlockNumber - blocksCountOneWeek
+    const fromBlock = toBlock - (2 * 24 * 60 * 60) / 2
 
-    await this.internalTransaction.removeInternalTxs(lastBlockNumber)
-    setTimeout(this.removeOldInternalTransactionsTask, period)
+    this.l.info(`Start removing internal transactions task`)
+    const timeStart = Date.now()
+    const deletedCount = await this.internalTransaction.deleteInternalTxs(fromBlock, toBlock)
+    this.l.info(
+      `Deleted internal transactions [${fromBlock}, ${toBlock}] count: ${deletedCount} (${
+        Date.now() - timeStart
+      }ms)`
+    )
+
+    setTimeout(() => this.removeOldInternalTransactionsTask(period), period)
   }
 
   async stop() {
