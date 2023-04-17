@@ -24,7 +24,7 @@ export async function reindexBlock(shardID: ShardID, blockNumber: number) {
     return {
       blockNumber: blockNumberSynced,
       logsBlocksNumber: logsNumberSynced,
-      elapsedTime: `${Date.now() - timeStart} ms`,
+      elapsedTimeMs: Date.now() - timeStart,
     }
   } catch (e) {
     l.info(`Cannot reindex block number ${blockNumber} shardID ${shardID}: "${e.message}"`)

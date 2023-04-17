@@ -98,7 +98,7 @@ export class PostgresStorage implements IStorage {
     this.l.info('Done')
 
     const {internalTxsDeletePeriod} = config.indexer
-    if (config.indexer.isEnabled && [0, 1].includes(this.shardID) && internalTxsDeletePeriod) {
+    if (config.indexer.isEnabled && [0, 1].includes(this.shardID) && internalTxsDeletePeriod > 0) {
       try {
         await this.removeOldInternalTransactionsTask(internalTxsDeletePeriod)
       } catch (err) {
