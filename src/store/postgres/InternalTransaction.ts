@@ -17,8 +17,11 @@ export class PostgresStorageInternalTransaction implements IStorageInternalTrans
     this.query = query
   }
 
-  removeInternalTxs = async (toBlockNumber: number) => {
-    await this.query(`delete from internal_transactions where block_number < $1`, [toBlockNumber])
+  // remove old transactions every day
+  removeInternalTransactionsOlder7Days = async (toBlockNumber: number) => {
+    const res = await this.query(`delete from internal_transactions where block_number < $1`, [
+      toBlockNumber,
+    ])
   }
 
   addInternalTransaction = async (tx: InternalTransaction) => {
