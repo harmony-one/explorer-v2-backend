@@ -107,7 +107,6 @@ export const config = {
     ),
     batchCount: +(process.env.INDEXER_BATCH_COUNT || 100),
     blockIndexerBlockRange: +(process.env.BLOCK_INDEXER_BLOCK_RANGE || 10),
-    internalTxsDeletePeriod: +(process.env.INTERNAL_TXS_DELETE_PERIOD || 1000 * 60 * 60 * 24), // Delete all internal txs older than given period
     rpc: {
       transport: process.env.INDEXER_RPC_TRANSPORT || 'ws',
       urls: [

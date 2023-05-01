@@ -28,6 +28,8 @@ import {config} from 'src/config'
 const defaultRetries = 2
 
 const sleep = (time = 1000) => new Promise((r) => setTimeout(r, time))
+const removeOldInternalTransactionsTaskPeriod = 1000 * 60 * 60 * 24
+const blockNumber7DayOld = (7 * 24 * 60 * 60) / 2
 
 export class PostgresStorage implements IStorage {
   db: Pool
@@ -97,10 +99,12 @@ export class PostgresStorage implements IStorage {
     this.isStarting = false
     this.l.info('Done')
 
-    const {internalTxsDeletePeriod} = config.indexer
-    if (config.indexer.isEnabled && [0, 1].includes(this.shardID) && internalTxsDeletePeriod > 0) {
+    if (config.indexer.isEnabled && [0, 1].includes(this.shardID)) {
+      this.l.info(
+        `Start removing internal transactions task, period: ${removeOldInternalTransactionsTaskPeriod}`
+      )
       try {
-        await this.removeOldInternalTransactionsTask(internalTxsDeletePeriod)
+        await this.removeOldInternalTransactionsTask()
       } catch (err) {
         this.l.error(`Failed to start removing internal transactions task: ${JSON.stringify(err)}`)
       }
@@ -170,22 +174,13 @@ export class PostgresStorage implements IStorage {
     return {count}
   }
 
-  removeOldInternalTransactionsTask = async (period: number) => {
-    const blocksCountOneWeek = (7 * 24 * 60 * 60) / 2
+  removeOldInternalTransactionsTask = async () => {
     const lastBlockNumber = await this.block.getLatestBlockNumber()
-    const toBlock = lastBlockNumber - blocksCountOneWeek
-    const fromBlock = toBlock - (2 * 24 * 60 * 60) / 2
+    const toBlock = lastBlockNumber - blockNumber7DayOld
+    this.l.info(`Removing internal transactions where block number < ${toBlock}`)
 
-    this.l.info(`Start removing internal transactions task`)
-    const timeStart = Date.now()
-    const deletedCount = await this.internalTransaction.deleteInternalTxs(fromBlock, toBlock)
-    this.l.info(
-      `Deleted internal transactions [${fromBlock}, ${toBlock}] count: ${deletedCount} (${
-        Date.now() - timeStart
-      }ms)`
-    )
-
-    setTimeout(() => this.removeOldInternalTransactionsTask(period), period)
+    await this.internalTransaction.removeInternalTransactionsOlder7Days(lastBlockNumber)
+    setTimeout(this.removeOldInternalTransactionsTask, removeOldInternalTransactionsTaskPeriod)
   }
 
   async stop() {
