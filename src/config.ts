@@ -71,8 +71,13 @@ export const config = {
       isEnabled: toBool(process.env.API_REST_IS_ENABLED || '0'),
       port: +(process.env.API_REST_PORT || 3000),
       apiKey: process.env.API_REST_ACCESS_KEY || '',
+      adminApiKey: process.env.API_KEY_ADMIN || '',
+      rateLimiter: {
+        isEnabled: toBool(process.env.API_RATE_LIMITER_IS_ENABLED || '1'),
+        windowMs: +(process.env.API_RATE_LIMITER_WINDOW_MS || 1000 * 60),
+        max: +(process.env.API_RATE_LIMITER_MAX || 100),
+      },
     },
-    // JSON RPC endpoint available on POST /v0/rpc. Requires API_REST_IS_ENABLED=1
     json_rpc: {
       isEnabled: toBool(process.env.API_RPC_IS_ENABLED || '1'),
       ethGetLogsLimit: +(process.env.RPC_GET_LOGS_LIMIT || 1024), // Blocks range limit for method "eth_getLogs"
@@ -80,11 +85,6 @@ export const config = {
     grpc: {
       isEnabled: toBool(process.env.API_GRPC_IS_ENABLED || '0'),
       port: 5051,
-    },
-    rateLimiter: {
-      isEnabled: toBool(process.env.API_RATE_LIMITER_IS_ENABLED || '1'),
-      windowMs: +(process.env.API_RATE_LIMITER_WINDOW_MS || 10 * 60 * 1000), // 10 minutes
-      max: +(process.env.API_RATE_LIMITER_MAX || 200), // // Limit each IP to 200 requests per `windowMs` = 10 minutes
     },
   },
   indexer: {
