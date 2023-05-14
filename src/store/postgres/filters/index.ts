@@ -27,6 +27,8 @@ export const buildSQLQuery = (query: Filter) => {
     .map((f) => {
       if (f.type === 'startsFrom') {
         return `${propertyToString(f.property)} like '${safeSQL(f.value)}%'`
+      } else if (f.type === 'eq' && f.value === 'null') {
+        return `${propertyToString(f.property)} is null`
       }
 
       return `${propertyToString(f.property)} ${mapFilterTypeToSQL[f.type]} ${safeSQL(f.value)}`
