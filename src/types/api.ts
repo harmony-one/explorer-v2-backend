@@ -11,6 +11,7 @@ export type FilterProperty =
   | 'transaction_type'
   | 'timestamp'
   | 'to'
+  | 'meta'
 
 export type TransactionQueryField = 'block_number' | 'block_hash' | 'hash' | 'hash_harmony'
 export type StakingTransactionQueryField = 'block_number' | 'block_hash' | 'hash'

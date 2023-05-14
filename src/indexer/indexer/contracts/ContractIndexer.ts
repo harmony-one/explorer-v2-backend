@@ -41,12 +41,29 @@ const updateTokensFilter: Filter = {
   ],
 }
 
+const emptyMetadataFilter: Filter = {
+  limit: 20,
+  offset: 0,
+  filters: [
+    {
+      property: 'meta',
+      type: 'eq',
+      value: 'null',
+    },
+  ],
+  orderBy: 'block_number',
+  orderDirection: 'desc',
+}
+
+const reindexEmptyERC1155MetaInterval = 60 * 60 * 1000
+
 export class ContractIndexer {
   readonly l: LoggerModule
   readonly store: PostgresStorage
   readonly contractType: ContractType
   readonly shardID: ShardID
   private contractsCache: string[] = []
+  private lastUpdateTimestamp = 0
 
   constructor(shardID: ShardID, contractType: ContractType) {
     this.shardID = shardID
@@ -370,7 +387,17 @@ export class ContractIndexer {
 
     let count = 0
     while (true) {
-      const assetsNeedUpdate = await this.store.erc1155.getAssets(updateTokensFilter)
+      let assetsNeedUpdate = await this.store.erc1155.getAssets(updateTokensFilter)
+
+      if (assetsNeedUpdate.length === 0) {
+        const needToCheckEmptyMetadata =
+          Date.now() - this.lastUpdateTimestamp > reindexEmptyERC1155MetaInterval
+        if (needToCheckEmptyMetadata) {
+          assetsNeedUpdate = await this.store.erc1155.getAssets(emptyMetadataFilter)
+          this.l.info(`Reindex empty metadata tokens: ${assetsNeedUpdate.length}`)
+        }
+      }
+
       if (!assetsNeedUpdate.length) {
         break
       }
@@ -572,6 +599,7 @@ export class ContractIndexer {
         `${this.contractType}_contracts`,
         blockTo
       )
+      this.lastUpdateTimestamp = Date.now()
 
       this.l.info(
         `Processed [${blockFrom}, ${blockTo}] (${
