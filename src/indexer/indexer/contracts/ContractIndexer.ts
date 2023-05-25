@@ -377,6 +377,7 @@ export class ContractIndexer {
 
       for (const item of assetsNeedUpdate.values()) {
         const {meta: metaData, tokenAddress, tokenID, tokenURI = ''} = item
+        await this.store.erc1155.updateTokenStats(tokenAddress)
         // @ts-ignore
         if (metaData && metaData.name) {
           await this.store.erc1155.updateAsset(
