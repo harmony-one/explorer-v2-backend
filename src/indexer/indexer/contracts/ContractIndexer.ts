@@ -55,6 +55,10 @@ export class ContractIndexer {
     this.l = logger(module, `:Shard${shardID}::${contractType}`)
   }
 
+  private clearUri(value: string) {
+    return value.replaceAll('\x00', '')
+  }
+
   private async addERC1155Contract(contract: Contract) {
     const {hasAllSignatures, callAll} = ABIFactoryERC1155(this.shardID)
 
@@ -334,7 +338,7 @@ export class ContractIndexer {
           return this.store.erc721.updateAsset(
             owner!,
             tokenAddress,
-            uri,
+            this.clearUri(uri),
             meta,
             tokenID as IERC721TokenID
           )

@@ -99,7 +99,11 @@ export class PostgresStorage implements IStorage {
     this.isStarting = false
     this.l.info('Done')
 
-    if (config.indexer.isEnabled && [0, 1].includes(this.shardID)) {
+    if (
+      config.indexer.isEnabled &&
+      config.indexer.isSyncingBlocksEnabled &&
+      [0, 1].includes(this.shardID)
+    ) {
       this.l.info(
         `Start removing internal transactions task, period: ${removeOldInternalTransactionsTaskPeriod}`
       )
