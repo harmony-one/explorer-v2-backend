@@ -151,31 +151,31 @@ export class BlockIndexer {
         )
       }
 
-      const addTransactions = (blocks: Block[], blockInternalTxs: InternalTransaction[][]) => {
-        return Promise.all(
-          blocks.map(async (block, blockIndex) => {
-            // block.transactions.map(monitorTransfers.addTransaction)
+      const addTransactions = async (
+        blocks: Block[],
+        blockInternalTxs: InternalTransaction[][]
+      ) => {
+        for (let i = 0; i < blocks.length; i++) {
+          const block = blocks[i]
 
-            const internalTxs = blockInternalTxs[blockIndex]
-            const blockTxs = block.transactions.map((tx) => {
-              // todo handle empty create to addresses
-              addressIndexer.add(block, tx.ethHash, 'transaction', tx.from, tx.to)
-              const extraMark = internalTxs.find(
-                (internalTx) =>
-                  internalTx.transactionHash === tx.ethHash && BigInt(internalTx.value) > 0
-              )
-                ? TransactionExtraMark.hasInternalONETransfers
-                : TransactionExtraMark.normal
-              return {
-                ...tx,
-                extraMark,
-              }
-            })
-
-            await store.transaction.addTransactions(blockTxs)
-            return block
+          const internalTxs = blockInternalTxs[i]
+          const blockTxs = block.transactions.map((tx) => {
+            // todo handle empty create to addresses
+            addressIndexer.add(block, tx.ethHash, 'transaction', tx.from, tx.to)
+            const extraMark = internalTxs.find(
+              (internalTx) =>
+                internalTx.transactionHash === tx.ethHash && BigInt(internalTx.value) > 0
+            )
+              ? TransactionExtraMark.hasInternalONETransfers
+              : TransactionExtraMark.normal
+            return {
+              ...tx,
+              extraMark,
+            }
           })
-        )
+
+          await store.transaction.addTransactions(blockTxs)
+        }
       }
 
       const addStakingTransactions = (blocks: Block[]) => {
@@ -227,7 +227,7 @@ export class BlockIndexer {
         )
       }
 
-      const blocks = await Promise.all(
+      const blocksRaw = await Promise.all(
         range(this.batchCount).map(async (_, i) => {
           const from = startBlock + i * blockRange
           const to = Math.min(
@@ -243,15 +243,23 @@ export class BlockIndexer {
           this.l.debug(`Processing [${from}, ${to}] ${to - from + 1} blocks...`)
 
           const blocks = await getBlocks(from, to)
-          const blocksInternalTxs = isTraceBlocksEnabled
-            ? await getBlocksTrace(blocks)
-            : [...Array(Math.max(to - from + 1, 1)).fill([])] // Array of empty arrays: [[], [], [], ..., []]
-          await addBlocks(blocks)
-          await addTransactions(blocks, blocksInternalTxs)
-          await addStakingTransactions(blocks)
-          return addTraceBlocks(filterBlocks(blocks), blocksInternalTxs)
+          return blocks
         })
-      ).then((res) => res.flatMap((b) => b).filter((b) => b))
+      )
+
+      const blocks = blocksRaw
+        .flat()
+        .filter((b) => b)
+        .sort((a: Block, b: Block) => a.number - b.number)
+
+      const blocksInternalTxs = isTraceBlocksEnabled
+        ? await getBlocksTrace(blocks)
+        : [...Array(Math.max(blocks.length, 1)).fill([])]
+      await addBlocks(blocks)
+      // console.log(`Added blocks ${blocks[0].number} - ${blocks[blocks.length - 1].number}`)
+      await addTransactions(blocks, blocksInternalTxs)
+      await addStakingTransactions(blocks)
+      await addTraceBlocks(filterBlocks(blocks), blocksInternalTxs)
 
       // Deprecated write txs to address2transaction_fifo
       // await addAddresses()
