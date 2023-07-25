@@ -73,6 +73,7 @@ export enum MetricsDailyType {
   transactionsCount = 'transactions_count',
   averageFee = 'average_fee',
   blockSize = 'block_size',
+  totalFee = 'total_fee',
 }
 
 export enum MetricsTopType {
