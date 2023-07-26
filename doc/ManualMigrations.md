@@ -5,9 +5,21 @@
 
 ### Manual migrations list
 
+### Date: 25.07.23
+
+#### Description
+
+New `metrics_type` enum value: 'total_fee'
+
+```sql
+ALTER TYPE metrics_type ADD VALUE 'total_fee';
+```
+
 #### Date: 21.03.23
 
-#### Description: add `block_number` column to tables `erc721_asset` and `erc1155_assets`
+#### Description
+
+Add `block_number` column to tables `erc721_asset` and `erc1155_assets`
 
 ```sql
 ALTER TABLE erc721_asset

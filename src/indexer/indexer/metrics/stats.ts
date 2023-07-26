@@ -11,16 +11,19 @@ export const statsIndexer = () => {
 }
 
 const runLoop = async () => {
+  l.info('Daily metrics update started...')
   try {
     const dateStart = Date.now()
-    const limit = 14
-    await Promise.all([
-      stores[0].metrics.updateWalletsCount(limit),
-      stores[0].metrics.updateTransactionsCount(limit),
-      stores[0].metrics.updateAverageFee(limit),
-      stores[0].metrics.updateBlockSize(limit),
-    ])
+    const daysCount = 14
+    const metricsStore = stores[0].metrics
+
+    await metricsStore.updateWalletsCount(daysCount)
+    await metricsStore.updateTransactionsCount(daysCount)
+    await metricsStore.updateAverageFee(daysCount)
+    await metricsStore.updateBlockSize(daysCount)
+    await metricsStore.updateTotalFee(daysCount)
     await updateTopDailyMetrics()
+
     l.info(`Daily metrics updated in ${Math.round((Date.now() - dateStart) / 1000)}s`)
   } catch (e) {
     l.error('Error on metrics update:', e.message)

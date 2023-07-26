@@ -135,6 +135,29 @@ export class PostgresStorageMetrics implements IStorageMetrics {
     return rows
   }
 
+  updateTotalFee = async (offsetFrom = 14, offsetTo = 0) => {
+    const rows = await this.query(
+      `select to_date("timestamp"::varchar, 'YYYY-MM-DD')::varchar as date,
+             round(sum(gas * gas_price / power(10, 18))::numeric, 0) as value
+             from (
+              select timestamp, gas, gas_price from "transactions"
+              union all
+              select timestamp, gas, gas_price from "staking_transactions"
+             ) t1
+             where "timestamp" >= date_trunc('day', now() - interval '${offsetFrom} day')
+             and "timestamp" < date_trunc('day', now() - interval '${offsetTo} day')
+             group by 1
+             order by 1 desc
+             limit 1000`,
+      []
+    )
+
+    if (rows.length > 0) {
+      await this.insertStats(MetricsDailyType.totalFee, rows)
+    }
+    return rows
+  }
+
   updateBlockSize = async (offsetFrom = 14, offsetTo = 0) => {
     const rows = await this.query(
       `select to_date("timestamp"::varchar, 'YYYY-MM-DD')::varchar as date,

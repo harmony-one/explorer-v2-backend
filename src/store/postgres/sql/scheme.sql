@@ -464,7 +464,8 @@ $$
             'wallets_count',
             'transactions_count',
             'average_fee',
-            'block_size'
+            'block_size',
+            'total_fee'
             );
     exception
         when duplicate_object then null;
