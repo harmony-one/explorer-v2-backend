@@ -36,3 +36,11 @@ export async function getERC20TokenHolders(req: Request, res: Response, next: Ne
   const data = await controllers.getERC20TokenHolders(s, address, filter.limit, filter.offset)
   next(data)
 }
+
+erc20Router.get('/transfer/:txId', catchAsync(getERC20TransferInfo))
+
+export async function getERC20TransferInfo(req: Request, res: Response, next: NextFunction) {
+  const {txId} = req.params
+  const data = await controllers.getERC20TransferInfo(0, txId)
+  next(data)
+}
