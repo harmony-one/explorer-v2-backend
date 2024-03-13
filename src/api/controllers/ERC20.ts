@@ -85,6 +85,7 @@ const getERC20Transfer = async (txHash: string) => {
   let to = ''
   let value = ''
   let decimals = '0'
+  let valueFormatted = 0
 
   const [log] = transferLogs
 
@@ -97,6 +98,7 @@ const getERC20Transfer = async (txHash: string) => {
     value = decodedLog.value
 
     decimals = await call('decimals', [], log.address)
+    valueFormatted = +value / Math.pow(10, +decimals)
   }
 
   return {
@@ -106,6 +108,7 @@ const getERC20Transfer = async (txHash: string) => {
     to,
     value,
     decimals,
+    valueFormatted,
   }
 }
 
