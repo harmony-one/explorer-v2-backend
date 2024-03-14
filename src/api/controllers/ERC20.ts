@@ -72,7 +72,7 @@ const getERC20Transfer = async (txHash: string) => {
     throw new Error('Logs not found')
   }
 
-  const {getEntryByName, decodeLog} = ABIFactoryERC20(shardID)
+  const {call, getEntryByName, decodeLog} = ABIFactoryERC20(shardID)
   const transferSignature = getEntryByName(ContractEventType.Transfer)!.signature
   const transferLogs = logs.filter(({topics}) => topics.includes(transferSignature))
 
@@ -84,6 +84,8 @@ const getERC20Transfer = async (txHash: string) => {
   let from = ''
   let to = ''
   let value = ''
+  let decimals = '0'
+  let valueFormatted = 0
 
   const [log] = transferLogs
 
@@ -94,6 +96,9 @@ const getERC20Transfer = async (txHash: string) => {
     from = decodedLog.from
     to = decodedLog.to
     value = decodedLog.value
+
+    decimals = await call('decimals', [], log.address)
+    valueFormatted = +value / Math.pow(10, +decimals)
   }
 
   return {
@@ -102,6 +107,8 @@ const getERC20Transfer = async (txHash: string) => {
     from,
     to,
     value,
+    decimals,
+    valueFormatted,
   }
 }
 
