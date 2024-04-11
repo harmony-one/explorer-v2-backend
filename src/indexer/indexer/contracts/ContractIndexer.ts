@@ -273,20 +273,24 @@ export class ContractIndexer {
 
     if (transferLogs.length > 0) {
       const addressesToUpdate = new Set<{address: string; tokenAddress: string}>() // unique addresses of senders and recipients
-      transferLogs.forEach((log) => {
-        const [topic0, ...topics] = log.topics
-        const decodedLog = decodeLog(ContractEventType.Transfer, log.data, topics)
-        const tokenAddress = normalizeAddress(log.address) as string
-        const from = normalizeAddress(decodedLog.from) as string
-        const to = normalizeAddress(decodedLog.to) as string
+      for (const log of transferLogs) {
+        try {
+          const [topic0, ...topics] = log.topics
+          const decodedLog = decodeLog(ContractEventType.Transfer, log.data, topics)
+          const tokenAddress = normalizeAddress(log.address) as string
+          const from = normalizeAddress(decodedLog.from) as string
+          const to = normalizeAddress(decodedLog.to) as string
 
-        if (from !== zeroAddress) {
-          addressesToUpdate.add({address: from, tokenAddress})
+          if (from !== zeroAddress) {
+            addressesToUpdate.add({address: from, tokenAddress})
+          }
+          if (to !== zeroAddress) {
+            addressesToUpdate.add({address: to, tokenAddress})
+          }
+        } catch (e) {
+          console.error('Failed to process transfer log:', log, ', error:', e)
         }
-        if (to !== zeroAddress) {
-          addressesToUpdate.add({address: to, tokenAddress})
-        }
-      })
+      }
 
       for (const item of addressesToUpdate.values()) {
         await this.store.erc20.setNeedUpdateBalance(item.address, item.tokenAddress)
