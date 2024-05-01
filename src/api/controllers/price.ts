@@ -178,3 +178,13 @@ export async function getBinancePairHistoricalPrice(pair: string): Promise<any |
     1000 * 60 * 60 * 24
   )
 }
+
+export async function getOneTokenPrice(): Promise<any | null> {
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=harmony&vs_currencies=usd&include_24hr_change=true`
+
+  return await withCache(
+    ['getOneTokenPrice', arguments],
+    () => Promise.race([call(url), timeout()]),
+    1000 * 60 * 5
+  )
+}

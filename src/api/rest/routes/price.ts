@@ -23,3 +23,10 @@ export async function getBinancePairHistoricalPrice(
   const data = await controllers.getBinancePairHistoricalPrice(pair)
   next(data)
 }
+
+priceRouter.get('/one', catchAsync(getOneTokenPrice))
+
+export async function getOneTokenPrice(req: Request, res: Response, next: NextFunction) {
+  const data = await controllers.getOneTokenPrice()
+  next(data)
+}
