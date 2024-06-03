@@ -49,6 +49,11 @@ export class PostgresStorageERC1155 implements IStorageERC1155 {
     )
   }
 
+  updateTokenStats = async (tokenAddress: string) => {
+    const holdersCount = (await this.getHoldersCount(tokenAddress)) || '0'
+    await this.query(`update erc1155 set holders=$2 where address=$1`, [tokenAddress, holdersCount])
+  }
+
   getERC1155LastSyncedBlock = async (address: Address): Promise<number> => {
     const res = await this.query(`select last_update_block_number from erc1155 where address=$1;`, [
       address,
@@ -125,13 +130,13 @@ export class PostgresStorageERC1155 implements IStorageERC1155 {
     return res.map(fromSnakeToCamelResponse)
   }
 
-  getHoldersCount = async (token: Address): Promise<string> => {
+  getHoldersCount = async (tokenAddress: Address): Promise<string> => {
     const res = await this.query(
       `select count(distinct(owner_address)) from erc1155_balance where token_address=$1`,
-      [token]
+      [tokenAddress]
     )
 
-    return res[0].count
+    return res[0] ? res[0].count : '0'
   }
 
   updateAsset = async (
